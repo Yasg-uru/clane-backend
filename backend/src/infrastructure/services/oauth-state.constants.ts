@@ -1,0 +1,2 @@
+export const OAUTH_STATE_TTL_SECONDS = 600;
+export const INSTAGRAM_SESSION_TTL_SECONDS = 900;

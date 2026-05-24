@@ -5,14 +5,17 @@ export interface Creator {
   role: "creator";
   fullName: string;
   email: string;
-  passwordHash: string;
-  city: string;
-  instagramHandle: string;
-  instagramFollowers: number;
-  niche: string[];
+  passwordHash?: string | null;
+  city?: string;
+  instagramHandle?: string;
+  instagramFollowers?: number;
+  niche?: string[];
   isEmailVerified: boolean;
   refreshToken?: string | null;
   authProvider: AuthProvider;
+  authProviders: string[];
+  googleId?: string;
+  googleConnected: boolean;
   instagramId?: string;
   instagramBio?: string;
   instagramProfilePicUrl?: string;
@@ -21,6 +24,8 @@ export interface Creator {
   instagramConnected: boolean;
   instagramVerified: boolean;
   instagramDataLastRefreshedAt?: Date;
+  isProfileComplete: boolean;
+  rawSocialProfile?: Record<string, unknown>;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -38,18 +43,11 @@ const creatorSchema = new Schema<Creator>(
     },
     fullName: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
-    passwordHash: { type: String, required: true, select: false },
-    city: { type: String, required: true, trim: true },
-    instagramHandle: { type: String, required: true, trim: true, unique: true, index: true },
-    instagramFollowers: { type: Number, required: true, min: 0 },
-    niche: {
-      type: [String],
-      required: true,
-      validate: {
-        validator: (value: string[]) => value.length > 0,
-        message: "At least one niche is required",
-      },
-    },
+    passwordHash: { type: String, default: null, select: false },
+    city: { type: String, trim: true },
+    instagramHandle: { type: String, trim: true, sparse: true, unique: true },
+    instagramFollowers: { type: Number, min: 0 },
+    niche: { type: [String] },
     isEmailVerified: { type: Boolean, default: false },
     refreshToken: { type: String, default: null, select: false },
     authProvider: {
@@ -58,6 +56,9 @@ const creatorSchema = new Schema<Creator>(
       default: "email",
       required: true,
     },
+    authProviders: { type: [String], default: [] },
+    googleId: { type: String, sparse: true, unique: true },
+    googleConnected: { type: Boolean, default: false },
     instagramId: { type: String, sparse: true, unique: true },
     instagramBio: { type: String },
     instagramProfilePicUrl: { type: String },
@@ -66,6 +67,8 @@ const creatorSchema = new Schema<Creator>(
     instagramConnected: { type: Boolean, default: false },
     instagramVerified: { type: Boolean, default: false },
     instagramDataLastRefreshedAt: { type: Date },
+    isProfileComplete: { type: Boolean, default: false },
+    rawSocialProfile: { type: Schema.Types.Mixed, select: false },
   },
   {
     timestamps: true,
@@ -77,6 +80,7 @@ const creatorSchema = new Schema<Creator>(
         delete ret.passwordHash;
         delete ret.refreshToken;
         delete ret.instagramAccessToken;
+        delete ret.rawSocialProfile;
         delete ret.__v;
         return ret;
       },

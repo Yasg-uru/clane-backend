@@ -31,8 +31,23 @@ export class CreatorRepository extends BaseRepository<CreatorDocument> {
     return Boolean(brand ?? creator);
   }
 
+  async findByGoogleId(googleId: string): Promise<CreatorDocument | null> {
+    return CreatorModel.findOne({ googleId }).exec();
+  }
+
   async findByInstagramId(instagramId: string): Promise<CreatorDocument | null> {
     return CreatorModel.findOne({ instagramId }).exec();
+  }
+
+  async linkSocialProvider(
+    userId: string,
+    data: Partial<Record<string, unknown>>,
+  ): Promise<void> {
+    await CreatorModel.findByIdAndUpdate(userId, data).exec();
+  }
+
+  async markProfileComplete(userId: string): Promise<void> {
+    await CreatorModel.findByIdAndUpdate(userId, { isProfileComplete: true }).exec();
   }
 
   async create(data: Partial<Record<string, unknown>>): Promise<CreatorDocument> {

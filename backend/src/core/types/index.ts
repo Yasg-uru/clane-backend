@@ -5,6 +5,7 @@ export const USER_ROLES = ["brand", "creator"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 export type AuthProvider = "email" | "instagram" | "google" | "both";
+export type SocialProvider = "google" | "instagram";
 
 export type SocialAuthStatus =
   | "AUTHENTICATED"
@@ -20,6 +21,21 @@ export interface JwtPayload {
   email: string;
   jti?: string;
   exp?: number;
+  purpose?: "email_verification" | "profile_completion";
+}
+
+export interface SocialProfile {
+  provider: SocialProvider;
+  providerId: string;
+  email: string | null;
+  fullName: string;
+  profilePhotoUrl: string | null;
+  instagramHandle: string | null;
+  instagramFollowers: number | null;
+  instagramBio: string | null;
+  instagramAccessToken: string | null;
+  instagramTokenExpiresAt: Date | null;
+  rawProfile: Record<string, unknown>;
 }
 
 export interface InstagramProfile {
@@ -45,6 +61,7 @@ interface SafeUserBase {
   city: string;
   isEmailVerified: boolean;
   authProvider: AuthProvider;
+  authProviders: string[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -54,8 +71,11 @@ export interface SafeBrand extends SafeUserBase {
   brandName: string;
   brandType: string;
   instagramHandle?: string;
+  instagramFollowers?: number;
+  instagramBio?: string;
   profilePhotoUrl?: string;
   googleConnected: boolean;
+  instagramConnected: boolean;
   isProfileComplete: boolean;
 }
 
@@ -68,6 +88,18 @@ export interface SafeCreator extends SafeUserBase {
   instagramConnected: boolean;
   instagramVerified: boolean;
   instagramDataLastRefreshedAt?: string;
+  googleConnected: boolean;
+  isProfileComplete: boolean;
 }
 
 export type SafeUser = SafeBrand | SafeCreator;
+
+export interface SocialAuthResult {
+  status: "authenticated" | "pending_email_verification" | "profile_incomplete" | "pending_email_submission";
+  accessToken: string | null;
+  refreshToken: string | null;
+  intermediateToken: string | null;
+  user: SafeUser | null;
+  instagramTokenExpiringSoon?: boolean;
+  instagramTokenExpired?: boolean;
+}

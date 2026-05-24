@@ -4,9 +4,14 @@ import type { IOtpService } from "../../core/interfaces/IOtpService";
 import type { IEmailService } from "../../core/interfaces/IEmailService";
 import type { IEventPublisher } from "../../core/interfaces/IEventPublisher";
 import type { IAuthStrategy } from "../../core/interfaces/IAuthStrategy";
+import type { ISocialAuthStrategy } from "../../core/interfaces/ISocialAuthStrategy";
+import type { IOAuthStateService, SocialProvider } from "../../core/interfaces/IOAuthStateService";
+import { AuthError } from "../../core/errors/AuthError";
 import { ConflictError } from "../../core/errors/ConflictError";
-import type { AuthDocument, UserRole } from "../../core/types";
+import type { AuthDocument, SocialProfile, UserRole } from "../../core/types";
 import type { CreatorRepository } from "../../infrastructure/repositories/CreatorRepository";
+import { EncryptionService } from "../../utils/crypto";
+import { env } from "../../config/env";
 import { BaseAuthService } from "./BaseAuthService";
 import { BCRYPT_SALT_ROUNDS } from "./auth.constants";
 import type { CreatorRegisterInput } from "./auth.validator";
@@ -21,8 +26,11 @@ export class CreatorAuthService extends BaseAuthService {
     emailService: IEmailService,
     eventPublisher: IEventPublisher,
     strategy: IAuthStrategy,
+    googleStrategy: ISocialAuthStrategy,
+    instagramStrategy: ISocialAuthStrategy,
+    oauthStateService: IOAuthStateService,
   ) {
-    super(tokenService, otpService, emailService, eventPublisher, strategy);
+    super(tokenService, otpService, emailService, eventPublisher, strategy, googleStrategy, instagramStrategy, oauthStateService);
   }
 
   async register(data: CreatorRegisterInput): Promise<void> {
@@ -50,6 +58,8 @@ export class CreatorAuthService extends BaseAuthService {
       niche: data.niche,
       isEmailVerified: false,
       authProvider: "email",
+      authProviders: ["email"],
+      isProfileComplete: true,
     });
 
     await this.sendRegistrationOtp(creator.email);
@@ -82,5 +92,71 @@ export class CreatorAuthService extends BaseAuthService {
 
   protected async crossRoleEmailExists(email: string): Promise<boolean> {
     return this.creatorRepository.emailExistsAcrossRoles(email);
+  }
+
+  protected async findUserBySocialId(provider: SocialProvider, providerId: string): Promise<AuthDocument | null> {
+    if (provider === "google") return this.creatorRepository.findByGoogleId(providerId);
+    return this.creatorRepository.findByInstagramId(providerId);
+  }
+
+  protected async createSocialUser(profile: SocialProfile): Promise<AuthDocument> {
+    if (!profile.email) {
+      throw new AuthError("Email is required to create user");
+    }
+
+    if (profile.provider === "google") {
+      return this.creatorRepository.create({
+        role: "creator",
+        fullName: profile.fullName,
+        email: profile.email,
+        passwordHash: null,
+        googleId: profile.providerId,
+        googleConnected: true,
+        authProvider: "google",
+        authProviders: ["google"],
+        isEmailVerified: true,
+        isProfileComplete: false,
+        rawSocialProfile: profile.rawProfile,
+      });
+    }
+
+    const encryptedToken = profile.instagramAccessToken
+      ? EncryptionService.encryptToken(profile.instagramAccessToken, env.INSTAGRAM_TOKEN_ENCRYPTION_KEY)
+      : undefined;
+
+    return this.creatorRepository.create({
+      role: "creator",
+      fullName: profile.fullName,
+      email: profile.email,
+      passwordHash: null,
+      instagramId: profile.providerId,
+      instagramConnected: true,
+      instagramVerified: true,
+      instagramHandle: profile.instagramHandle ?? undefined,
+      instagramFollowers: profile.instagramFollowers ?? undefined,
+      instagramBio: profile.instagramBio ?? undefined,
+      instagramProfilePicUrl: profile.profilePhotoUrl ?? undefined,
+      instagramAccessToken: encryptedToken,
+      instagramTokenExpiresAt: profile.instagramTokenExpiresAt ?? undefined,
+      authProvider: "instagram",
+      authProviders: ["instagram"],
+      isEmailVerified: false,
+      isProfileComplete: false,
+      rawSocialProfile: profile.rawProfile,
+    });
+  }
+
+  protected async linkSocialProviderInDb(
+    userId: string,
+    data: Partial<Record<string, unknown>>,
+  ): Promise<void> {
+    await this.creatorRepository.linkSocialProvider(userId, data);
+  }
+
+  protected async completeSocialProfileInDb(
+    userId: string,
+    data: Partial<Record<string, unknown>>,
+  ): Promise<AuthDocument | null> {
+    return this.creatorRepository.updateById(userId, { ...data, isProfileComplete: true });
   }
 }

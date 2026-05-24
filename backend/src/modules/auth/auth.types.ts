@@ -1,8 +1,10 @@
 import type { SafeUser } from "../../core/types";
 
 export interface AuthResult {
-  accessToken: string;
-  refreshToken: string;
+  status?: "authenticated" | "profile_incomplete";
+  accessToken: string | null;
+  refreshToken: string | null;
+  intermediateToken?: string | null;
   user: SafeUser;
 }
 

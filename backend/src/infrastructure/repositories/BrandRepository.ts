@@ -35,6 +35,21 @@ export class BrandRepository extends BaseRepository<BrandDocument> {
     return BrandModel.findOne({ googleId }).exec();
   }
 
+  async findByInstagramId(instagramId: string): Promise<BrandDocument | null> {
+    return BrandModel.findOne({ instagramId }).exec();
+  }
+
+  async linkSocialProvider(
+    userId: string,
+    data: Partial<Record<string, unknown>>,
+  ): Promise<void> {
+    await BrandModel.findByIdAndUpdate(userId, data).exec();
+  }
+
+  async markProfileComplete(userId: string): Promise<void> {
+    await BrandModel.findByIdAndUpdate(userId, { isProfileComplete: true }).exec();
+  }
+
   async create(data: Partial<Record<string, unknown>>): Promise<BrandDocument> {
     return BrandModel.create(data);
   }

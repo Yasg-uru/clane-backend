@@ -30,3 +30,10 @@ export const VERIFY_OPTIONS: VerifyOptions = {
   issuer: JWT_ISSUER,
   audience: JWT_AUDIENCE,
 };
+
+export const INTERMEDIATE_TOKEN_OPTIONS: SignOptions = {
+  expiresIn: "15m",
+  algorithm: "HS256",
+  issuer: JWT_ISSUER,
+  audience: JWT_AUDIENCE,
+};

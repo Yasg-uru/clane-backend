@@ -86,8 +86,42 @@ export const resendOtpSchema = z.object({
   role: roleSchema,
 });
 
+export const socialCallbackSchema = z.object({
+  code: z.string().min(1, "Authorization code is required"),
+  state: z.string().min(1, "State parameter is required"),
+});
+
+export const brandCompleteProfileSchema = z.object({
+  brandName: trimmedString("Brand name is required"),
+  brandType: trimmedString("Brand type is required"),
+  city: trimmedString("City is required"),
+});
+
+export const creatorCompleteProfileSchema = z.object({
+  instagramHandle: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.string().min(1, "Instagram handle is required").regex(/^@?[a-zA-Z0-9._]+$/, "Invalid Instagram handle format"),
+  ),
+  instagramFollowers: z
+    .number()
+    .int("Instagram followers must be an integer")
+    .min(0, "Instagram followers cannot be negative"),
+  niche: z
+    .array(trimmedString("Niche cannot be empty"))
+    .min(1, "At least one niche is required"),
+  city: trimmedString("City is required"),
+});
+
+export const submitInstagramEmailSchema = z.object({
+  email: emailSchema,
+});
+
 export type BrandRegisterInput = z.infer<typeof brandRegisterSchema>;
 export type CreatorRegisterInput = z.infer<typeof creatorRegisterSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ResendOtpInput = z.infer<typeof resendOtpSchema>;
+export type SocialCallbackInput = z.infer<typeof socialCallbackSchema>;
+export type BrandCompleteProfileInput = z.infer<typeof brandCompleteProfileSchema>;
+export type CreatorCompleteProfileInput = z.infer<typeof creatorCompleteProfileSchema>;
+export type SubmitInstagramEmailInput = z.infer<typeof submitInstagramEmailSchema>;

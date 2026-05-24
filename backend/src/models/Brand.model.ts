@@ -5,19 +5,27 @@ export interface Brand {
   role: "brand";
   fullName: string;
   email: string;
-  passwordHash: string;
-  city: string;
-  brandName: string;
-  brandType: string;
+  passwordHash?: string | null;
+  city?: string;
+  brandName?: string;
+  brandType?: string;
   instagramHandle?: string;
+  instagramFollowers?: number;
+  instagramBio?: string;
   isEmailVerified: boolean;
   refreshToken?: string | null;
   authProvider: AuthProvider;
+  authProviders: string[];
   googleId?: string;
   googleEmail?: string;
   googleConnected: boolean;
+  instagramId?: string;
+  instagramConnected: boolean;
+  instagramAccessToken?: string;
+  instagramTokenExpiresAt?: Date;
   profilePhotoUrl?: string;
   isProfileComplete: boolean;
+  rawSocialProfile?: Record<string, unknown>;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -35,11 +43,13 @@ const brandSchema = new Schema<Brand>(
     },
     fullName: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
-    passwordHash: { type: String, required: true, select: false },
-    city: { type: String, required: true, trim: true },
-    brandName: { type: String, required: true, trim: true },
-    brandType: { type: String, required: true, trim: true },
+    passwordHash: { type: String, default: null, select: false },
+    city: { type: String, trim: true },
+    brandName: { type: String, trim: true },
+    brandType: { type: String, trim: true },
     instagramHandle: { type: String, trim: true },
+    instagramFollowers: { type: Number, min: 0 },
+    instagramBio: { type: String },
     isEmailVerified: { type: Boolean, default: false },
     refreshToken: { type: String, default: null, select: false },
     authProvider: {
@@ -48,11 +58,17 @@ const brandSchema = new Schema<Brand>(
       default: "email",
       required: true,
     },
+    authProviders: { type: [String], default: [] },
     googleId: { type: String, sparse: true, unique: true },
     googleEmail: { type: String, lowercase: true, trim: true },
     googleConnected: { type: Boolean, default: false },
+    instagramId: { type: String, sparse: true, unique: true },
+    instagramConnected: { type: Boolean, default: false },
+    instagramAccessToken: { type: String, select: false },
+    instagramTokenExpiresAt: { type: Date },
     profilePhotoUrl: { type: String },
     isProfileComplete: { type: Boolean, default: false },
+    rawSocialProfile: { type: Schema.Types.Mixed, select: false },
   },
   {
     timestamps: true,
@@ -60,6 +76,8 @@ const brandSchema = new Schema<Brand>(
       transform: (_doc, ret: Partial<Brand> & { _id?: object; __v?: number }) => {
         delete ret.passwordHash;
         delete ret.refreshToken;
+        delete ret.instagramAccessToken;
+        delete ret.rawSocialProfile;
         delete ret.__v;
         return ret;
       },

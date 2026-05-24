@@ -95,6 +95,7 @@ Implemented and verified:
 │   │   ├── express.d.ts
 │   │   └── index.ts
 │   ├── app.ts
+│   ├── bootstrap.ts
 │   └── server.ts
 ├── .env.example
 ├── .gitignore
@@ -165,14 +166,14 @@ npm start
 
 | Script | Purpose |
 | --- | --- |
-| `npm run dev` | Starts `tsx watch src/server.ts` |
+| `npm run dev` | Starts `tsx watch src/bootstrap.ts` |
 | `npm run build` | Compiles TypeScript to `dist/` |
 | `npm start` | Runs `node dist/server.js` |
 | `npm run lint` | Runs ESLint over `src/**/*.ts` |
 
 ## App Bootstrap Flow
 
-`src/server.ts` starts the app in this order:
+`src/bootstrap.ts` starts the app in this order:
 
 1. Connect MongoDB through `connectDB()`
 2. Connect Redis through `connectRedis()`
