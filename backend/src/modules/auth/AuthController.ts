@@ -3,7 +3,7 @@ import { AuthError } from "../../core/errors/AuthError";
 import type { ITokenService } from "../../core/interfaces/ITokenService";
 import type { UserRole } from "../../core/types";
 import { ApiResponse } from "../../core/responses/ApiResponse";
-import { asyncHandler } from "../../utils/asyncHandler";
+import { AsyncHandler } from "../../utils/asyncHandler";
 import {
   brandRegisterSchema,
   creatorRegisterSchema,
@@ -27,19 +27,19 @@ export class AuthController {
     private readonly tokenService: ITokenService,
   ) {}
 
-  registerBrand = asyncHandler(async (req, res) => {
+  registerBrand = AsyncHandler.wrap(async (req, res) => {
     const payload = brandRegisterSchema.parse(req.body);
     await this.brandAuthService.register(payload);
     res.status(201).json(new ApiResponse("OTP sent to email", { email: payload.email }));
   });
 
-  registerCreator = asyncHandler(async (req, res) => {
+  registerCreator = AsyncHandler.wrap(async (req, res) => {
     const payload = creatorRegisterSchema.parse(req.body);
     await this.creatorAuthService.register(payload);
     res.status(201).json(new ApiResponse("OTP sent to email", { email: payload.email }));
   });
 
-  verifyOtp = asyncHandler(async (req, res) => {
+  verifyOtp = AsyncHandler.wrap(async (req, res) => {
     const payload = verifyOtpSchema.parse(req.body);
     const result = await this.getService(payload.role).verifyOtp(payload);
     res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS);
@@ -48,7 +48,7 @@ export class AuthController {
     );
   });
 
-  login = asyncHandler(async (req, res) => {
+  login = AsyncHandler.wrap(async (req, res) => {
     const payload = loginSchema.parse(req.body);
     const result = await this.getService(payload.role).login(payload);
     res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS);
@@ -57,7 +57,7 @@ export class AuthController {
     );
   });
 
-  refresh = asyncHandler(async (req, res) => {
+  refresh = AsyncHandler.wrap(async (req, res) => {
     const rawToken = this.getRefreshTokenFromCookie(req);
     const decoded = this.tokenService.verifyRefreshToken(rawToken);
     const result = await this.getService(decoded.role).refreshToken(rawToken, decoded);
@@ -65,14 +65,14 @@ export class AuthController {
     res.status(200).json(new ApiResponse("Token refreshed", { accessToken: result.accessToken }));
   });
 
-  logout = asyncHandler(async (req, res) => {
+  logout = AsyncHandler.wrap(async (req, res) => {
     if (!req.user) throw new AuthError("Unauthorized");
     await this.getService(req.user.role).logout(req.user);
     res.clearCookie(REFRESH_TOKEN_COOKIE, CLEAR_REFRESH_COOKIE_OPTIONS);
     res.status(200).json(new ApiResponse("Logged out", {}));
   });
 
-  resendOtp = asyncHandler(async (req, res) => {
+  resendOtp = AsyncHandler.wrap(async (req, res) => {
     const payload = resendOtpSchema.parse(req.body);
     await this.getService(payload.role).resendOtp(payload);
     res.status(200).json(new ApiResponse("OTP resent", { email: payload.email }));

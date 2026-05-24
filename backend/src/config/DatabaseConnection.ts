@@ -1,8 +1,7 @@
 import mongoose from "mongoose";
 import { env } from "./env";
+import { MAX_RETRIES } from "./config.constants";
 import { logger } from "../utils/logger";
-
-const MAX_RETRIES = 5;
 
 export class DatabaseConnection {
   private static instance: DatabaseConnection;

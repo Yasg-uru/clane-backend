@@ -1,17 +1,16 @@
-export interface ErrorResponseBody {
-  success: false;
-  message: string;
-  code?: string;
-  errors?: unknown[];
-}
+export class ErrorResponse {
+  readonly success = false as const;
+  readonly message: string;
+  readonly code?: string;
+  readonly errors?: unknown[];
 
-export const buildErrorResponse = (
-  message: string,
-  code?: string,
-  errors?: unknown[],
-): ErrorResponseBody => {
-  const body: ErrorResponseBody = { success: false, message };
-  if (code) body.code = code;
-  if (errors?.length) body.errors = errors;
-  return body;
-};
+  private constructor(message: string, code?: string, errors?: unknown[]) {
+    this.message = message;
+    if (code) this.code = code;
+    if (errors?.length) this.errors = errors;
+  }
+
+  static build(message: string, code?: string, errors?: unknown[]): ErrorResponse {
+    return new ErrorResponse(message, code, errors);
+  }
+}

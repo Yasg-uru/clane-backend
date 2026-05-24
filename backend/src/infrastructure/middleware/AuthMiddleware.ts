@@ -1,12 +1,12 @@
 import type { RequestHandler } from "express";
-import { asyncHandler } from "../../utils/asyncHandler";
+import { AsyncHandler } from "../../utils/asyncHandler";
 import type { ITokenService } from "../../core/interfaces/ITokenService";
 import { AuthError } from "../../core/errors/AuthError";
 
 export class AuthMiddleware {
   constructor(private readonly tokenService: ITokenService) {}
 
-  authenticate: RequestHandler = asyncHandler(async (req, _res, next) => {
+  authenticate: RequestHandler = AsyncHandler.wrap(async (req, _res, next) => {
     const authorization = req.header("Authorization");
 
     if (!authorization || !authorization.startsWith("Bearer ")) {

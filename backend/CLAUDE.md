@@ -333,11 +333,13 @@ throw new ApiError(401, "Invalid credentials");
 
 | File | What it provides |
 |---|---|
-| `asyncHandler.ts` | Wraps async route handlers, forwards errors to Express |
+| `asyncHandler.ts` | `AsyncHandler.wrap(handler)` — wraps async route handlers, forwards errors to Express |
 | `logger.ts` | Winston logger — use this everywhere, never `console.log` |
-| `crypto.ts` | `encryptToken` / `decryptToken` — AES-256-GCM for Instagram access tokens |
+| `crypto.ts` | `EncryptionService.encryptToken` / `EncryptionService.decryptToken` — AES-256-GCM for Instagram access tokens |
 
 `ApiError`, `ApiResponse`, `jwt.ts`, and `mailer.ts` no longer exist here — those concerns are now handled by `core/errors/`, `core/responses/ApiResponse.ts`, `TokenService`, and `EmailService` respectively.
+
+`core/responses/ApiError.ts` exports `ErrorResponse` class with `ErrorResponse.build(message, code?, errors?)` static factory — used exclusively by `ErrorHandlerMiddleware`.
 
 ---
 

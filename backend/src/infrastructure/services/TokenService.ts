@@ -1,48 +1,17 @@
 import crypto from "crypto";
-import jwt, {
-  type JwtPayload as JsonWebTokenPayload,
-  type SignOptions,
-  type VerifyOptions,
-} from "jsonwebtoken";
+import jwt, { type JwtPayload as JsonWebTokenPayload } from "jsonwebtoken";
 import { env } from "../../config/env";
 import type { RedisClient } from "../../config/RedisClient";
 import type { ITokenService } from "../../core/interfaces/ITokenService";
 import { AuthError } from "../../core/errors/AuthError";
 import type { JwtPayload, UserRole } from "../../core/types";
-
-const JWT_ISSUER = "creatorlane";
-const JWT_AUDIENCE = "creatorlane-users";
-const INSTAGRAM_PENDING_PURPOSE = "instagram_email_submission" as const;
-
-const accessTokenOptions: SignOptions = {
-  expiresIn: "15m",
-  algorithm: "HS256",
-  issuer: JWT_ISSUER,
-  audience: JWT_AUDIENCE,
-};
-
-const refreshTokenOptions: SignOptions = {
-  expiresIn: "7d",
-  algorithm: "HS256",
-  issuer: JWT_ISSUER,
-  audience: JWT_AUDIENCE,
-};
-
-const shortLivedOptions: SignOptions = {
-  expiresIn: "10m",
-  algorithm: "HS256",
-  issuer: JWT_ISSUER,
-  audience: JWT_AUDIENCE,
-};
-
-const verifyOptions: VerifyOptions = {
-  algorithms: ["HS256"],
-  issuer: JWT_ISSUER,
-  audience: JWT_AUDIENCE,
-};
-
-const isUserRole = (role: unknown): role is UserRole =>
-  role === "brand" || role === "creator";
+import {
+  ACCESS_TOKEN_OPTIONS,
+  INSTAGRAM_PENDING_PURPOSE,
+  REFRESH_TOKEN_OPTIONS,
+  SHORT_LIVED_TOKEN_OPTIONS,
+  VERIFY_OPTIONS,
+} from "./token.constants";
 
 export class TokenService implements ITokenService {
   constructor(private readonly redisClient: RedisClient) {}
@@ -56,7 +25,7 @@ export class TokenService implements ITokenService {
         jti: crypto.randomUUID(),
       },
       env.JWT_ACCESS_SECRET,
-      accessTokenOptions,
+      ACCESS_TOKEN_OPTIONS,
     );
   }
 
@@ -64,12 +33,12 @@ export class TokenService implements ITokenService {
     return jwt.sign(
       { userId: payload.userId, role: payload.role, email: payload.email },
       env.JWT_REFRESH_SECRET,
-      refreshTokenOptions,
+      REFRESH_TOKEN_OPTIONS,
     );
   }
 
   verifyAccessToken(token: string): JwtPayload {
-    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, verifyOptions);
+    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, VERIFY_OPTIONS);
     if (typeof decoded === "object" && decoded !== null && "purpose" in decoded) {
       throw new AuthError("Unauthorized");
     }
@@ -77,7 +46,7 @@ export class TokenService implements ITokenService {
   }
 
   verifyRefreshToken(token: string): JwtPayload {
-    return this.normalizePayload(jwt.verify(token, env.JWT_REFRESH_SECRET, verifyOptions));
+    return this.normalizePayload(jwt.verify(token, env.JWT_REFRESH_SECRET, VERIFY_OPTIONS));
   }
 
   hashToken(token: string): string {
@@ -96,14 +65,14 @@ export class TokenService implements ITokenService {
     return jwt.sign(
       { sessionId, purpose: INSTAGRAM_PENDING_PURPOSE },
       env.JWT_ACCESS_SECRET,
-      shortLivedOptions,
+      SHORT_LIVED_TOKEN_OPTIONS,
     );
   }
 
   verifyInstagramPendingToken(token: string): { sessionId: string } {
     let decoded: string | JsonWebTokenPayload;
     try {
-      decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, verifyOptions);
+      decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, VERIFY_OPTIONS);
     } catch {
       throw new AuthError("Unauthorized");
     }
@@ -126,7 +95,7 @@ export class TokenService implements ITokenService {
 
     const { userId, role, email, jti, exp } = decoded;
 
-    if (typeof userId !== "string" || !isUserRole(role) || typeof email !== "string") {
+    if (typeof userId !== "string" || !TokenService.isUserRole(role) || typeof email !== "string") {
       throw new AuthError("Unauthorized");
     }
 
@@ -137,5 +106,9 @@ export class TokenService implements ITokenService {
       jti: typeof jti === "string" ? jti : undefined,
       exp: typeof exp === "number" ? exp : undefined,
     };
+  }
+
+  private static isUserRole(role: unknown): role is UserRole {
+    return role === "brand" || role === "creator";
   }
 }

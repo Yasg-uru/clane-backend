@@ -1,9 +1,7 @@
 import amqp, { type Channel, type ChannelModel } from "amqplib";
 import { env } from "./env";
+import { MAX_RETRIES, RABBITMQ_EXCHANGE_NAME } from "./config.constants";
 import { logger } from "../utils/logger";
-
-const EXCHANGE_NAME = "creatorlane.events";
-const MAX_RETRIES = 5;
 
 export class RabbitMQConnection {
   private static instance: RabbitMQConnection;
@@ -24,7 +22,7 @@ export class RabbitMQConnection {
       try {
         const conn = await amqp.connect(env.RABBITMQ_URL);
         const ch = await conn.createChannel();
-        await ch.assertExchange(EXCHANGE_NAME, "topic", { durable: true });
+        await ch.assertExchange(RABBITMQ_EXCHANGE_NAME, "topic", { durable: true });
 
         conn.on("error", (error: Error) => {
           logger.error("RabbitMQ connection error", { error });
@@ -51,7 +49,7 @@ export class RabbitMQConnection {
   }
 
   getExchangeName(): string {
-    return EXCHANGE_NAME;
+    return RABBITMQ_EXCHANGE_NAME;
   }
 
   async disconnect(): Promise<void> {

@@ -2,10 +2,7 @@ import crypto from "crypto";
 import type { RedisClient } from "../../config/RedisClient";
 import type { IOtpService } from "../../core/interfaces/IOtpService";
 import type { UserRole } from "../../core/types";
-
-const OTP_TTL_SECONDS = 600;
-const COOLDOWN_TTL_SECONDS = 60;
-const MAX_ATTEMPTS = 3;
+import { COOLDOWN_TTL_SECONDS, MAX_OTP_ATTEMPTS, OTP_TTL_SECONDS } from "./otp.constants";
 
 export class OtpService implements IOtpService {
   constructor(private readonly redisClient: RedisClient) {}
@@ -48,7 +45,7 @@ export class OtpService implements IOtpService {
       await this.redisClient.expire(this.attemptsKey(role, email), OTP_TTL_SECONDS);
     }
 
-    if (attempts >= MAX_ATTEMPTS) {
+    if (attempts >= MAX_OTP_ATTEMPTS) {
       await this.redisClient.set(this.lockKey(role, email), "1", OTP_TTL_SECONDS);
     }
 
