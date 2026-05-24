@@ -247,6 +247,7 @@ export const createAuthRouter = (controller: AuthController, authMiddleware: Aut
 |---|---|---|
 | Class files | `PascalCase` | `BrandAuthService.ts`, `TokenService.ts` |
 | Non-class files | `kebab-case` or `dot-notation` | `auth.validator.ts`, `auth.types.ts` |
+| Constants files | `kebab-case` + `.constants` | `auth.constants.ts` |
 | Classes | `PascalCase` noun | `BrandAuthService`, `TokenService` |
 | Interfaces | `I` + `PascalCase` | `ITokenService`, `IRepository` |
 | Error classes | `PascalCase` + `Error` | `AuthError`, `ConflictError` |
@@ -259,8 +260,40 @@ export const createAuthRouter = (controller: AuthController, authMiddleware: Aut
 | Mongoose interfaces | `PascalCase` noun | `Brand`, `Creator` |
 | Mongoose document types | `PascalCase` + `Document` | `BrandDocument`, `CreatorDocument` |
 | Mongoose models | `PascalCase` + `Model` | `BrandModel`, `CreatorModel` |
-| Constants | `UPPER_SNAKE_CASE` | `BCRYPT_SALT_ROUNDS`, `OTP_TTL_SECONDS` |
+| Constants | `UPPER_SNAKE_CASE` | `BCRYPT_SALT_ROUNDS`, `REFRESH_TOKEN_COOKIE` |
 | Route prefix | `/api/v1/<module>` | `/api/v1/auth`, `/api/v1/campaigns` |
+
+---
+
+## Constants Files — Non-Negotiable
+
+Constants must never be defined inside a class body or left as file-level `const` inside a class file. They go in a dedicated constants file.
+
+**Where a constant lives:**
+
+| Scope | Location |
+|---|---|
+| Used only within one module | `src/modules/<feature>/<feature>.constants.ts` |
+| Truly shared across two or more modules | `src/utils/constants.ts` |
+
+**What belongs in a constants file:**
+- Named string/number values (`REFRESH_TOKEN_COOKIE`, `BCRYPT_SALT_ROUNDS`)
+- Timing values in milliseconds or seconds (`REFRESH_TOKEN_MAX_AGE_MS`)
+- Configuration objects derived from those values (`REFRESH_COOKIE_OPTIONS`, `CLEAR_REFRESH_COOKIE_OPTIONS`)
+
+**What does NOT belong in a constants file:**
+- Private implementation details that never leave one class (e.g. `OTP_TTL_SECONDS` only used inside `OtpService` methods — keep those as `private static readonly` or file-level `const` in the class's own file).
+
+```ts
+// correct — auth.constants.ts exports shared auth values
+export const REFRESH_TOKEN_COOKIE = "refreshToken";
+export const BCRYPT_SALT_ROUNDS = 12;
+export const REFRESH_COOKIE_OPTIONS: CookieOptions = { ... };
+
+// wrong — constant buried inside AuthController.ts alongside class code
+const REFRESH_TOKEN_COOKIE = "refreshToken";  // ← hidden, hard to find
+export class AuthController { ... }
+```
 
 ---
 
@@ -369,21 +402,24 @@ Follow this order. Do not skip steps.
 2. **Model** (if new data): `src/models/<Feature>.model.ts`
    - Export plain interface, `HydratedDocument` alias, and Mongoose model.
    - Sensitive fields: `select: false`. Add `toJSON.transform`.
-3. **Validator**: `src/modules/<feature>/<feature>.validator.ts`
+3. **Constants** (if the module has named values): `src/modules/<feature>/<feature>.constants.ts`
+   - Cookie names, timing values, config objects. All `UPPER_SNAKE_CASE`.
+   - Never define these inside a class body or alongside class code in the same file.
+4. **Validator**: `src/modules/<feature>/<feature>.validator.ts`
    - Private reusable field schemas. Export schemas + `z.infer<>` types.
-4. **Repository**: `src/infrastructure/repositories/<Feature>Repository.ts`
+5. **Repository**: `src/infrastructure/repositories/<Feature>Repository.ts`
    - `extends BaseRepository<FeatureDocument>`. All Mongoose queries here.
-5. **Service class**: `src/modules/<feature>/<Feature>Service.ts`
+6. **Service class**: `src/modules/<feature>/<Feature>Service.ts`
    - Constructor receives all dependencies via DI (repositories, token service, etc.).
    - Public methods return typed results. Throw typed `AppError` subclasses.
-6. **Controller class**: `src/modules/<feature>/<Feature>Controller.ts`
+7. **Controller class**: `src/modules/<feature>/<Feature>Controller.ts`
    - Handler methods as bound arrow functions. Parse → call service → respond.
    - `asyncHandler` wraps each handler.
-7. **Routes factory**: `src/modules/<feature>/<feature>.routes.ts`
+8. **Routes factory**: `src/modules/<feature>/<feature>.routes.ts`
    - `export const create<Feature>Router = (controller, ...) => Router`
-8. **Wire up in `src/app.ts`**: mount `create<Feature>Router(...)` in `initialiseRoutes()`.
-9. **Wire up in `src/server.ts`** (composition root): instantiate repository, service, controller; pass to `App`.
-10. **Run checks**: `npm run build && npm run lint`
+9. **Wire up in `src/app.ts`**: mount `create<Feature>Router(...)` in `initialiseRoutes()`.
+10. **Wire up in `src/server.ts`** (composition root): instantiate repository, service, controller; pass to `App`.
+11. **Run checks**: `npm run build && npm run lint`
 
 ---
 

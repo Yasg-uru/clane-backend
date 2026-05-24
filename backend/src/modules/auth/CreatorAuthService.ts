@@ -8,6 +8,7 @@ import { ConflictError } from "../../core/errors/ConflictError";
 import type { AuthDocument, UserRole } from "../../core/types";
 import type { CreatorRepository } from "../../infrastructure/repositories/CreatorRepository";
 import { BaseAuthService } from "./BaseAuthService";
+import { BCRYPT_SALT_ROUNDS } from "./auth.constants";
 import type { CreatorRegisterInput } from "./auth.validator";
 
 export class CreatorAuthService extends BaseAuthService {
@@ -37,7 +38,7 @@ export class CreatorAuthService extends BaseAuthService {
       throw new ConflictError("Email already registered");
     }
 
-    const passwordHash = await bcrypt.hash(data.password, this.bcryptRounds);
+    const passwordHash = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
     const creator = await this.creatorRepository.create({
       role: "creator",
       fullName: data.fullName,

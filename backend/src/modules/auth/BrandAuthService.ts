@@ -8,6 +8,7 @@ import { ConflictError } from "../../core/errors/ConflictError";
 import type { AuthDocument, UserRole } from "../../core/types";
 import type { BrandRepository } from "../../infrastructure/repositories/BrandRepository";
 import { BaseAuthService } from "./BaseAuthService";
+import { BCRYPT_SALT_ROUNDS } from "./auth.constants";
 import type { BrandRegisterInput } from "./auth.validator";
 
 export class BrandAuthService extends BaseAuthService {
@@ -37,7 +38,7 @@ export class BrandAuthService extends BaseAuthService {
       throw new ConflictError("Email already registered");
     }
 
-    const passwordHash = await bcrypt.hash(data.password, this.bcryptRounds);
+    const passwordHash = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
     const brand = await this.brandRepository.create({
       role: "brand",
       fullName: data.fullName,

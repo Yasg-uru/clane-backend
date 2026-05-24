@@ -12,8 +12,6 @@ import type { AuthDocument, JwtPayload, SafeBrand, SafeCreator, SafeUser, UserRo
 import type { AuthResult, RefreshResult } from "./auth.types";
 import type { LoginInput, ResendOtpInput, VerifyOtpInput } from "./auth.validator";
 
-const BCRYPT_SALT_ROUNDS = 12;
-
 export abstract class BaseAuthService {
   protected abstract readonly role: UserRole;
 
@@ -47,8 +45,10 @@ export abstract class BaseAuthService {
     const isValid = await this.otpService.verify(this.role, data.email, data.otp);
 
     if (!isValid) {
-      const attempts = await this.otpService.trackAttempts(this.role, data.email);
-      if (attempts >= 3) throw new AuthError("OTP expired or invalid");
+      await this.otpService.trackAttempts(this.role, data.email);
+      if (await this.otpService.isLocked(this.role, data.email)) {
+        throw new AuthError("OTP expired or invalid");
+      }
       throw new AuthError("Invalid OTP");
     }
 
@@ -192,7 +192,4 @@ export abstract class BaseAuthService {
     return safeCreator;
   }
 
-  protected get bcryptRounds(): number {
-    return BCRYPT_SALT_ROUNDS;
-  }
 }

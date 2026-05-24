@@ -1,4 +1,4 @@
-import rateLimit, { type RateLimitRequestHandler } from "express-rate-limit";
+import rateLimit, { ipKeyGenerator, type RateLimitRequestHandler } from "express-rate-limit";
 import { RedisStore, type RedisReply } from "rate-limit-redis";
 import type { RedisClient } from "../../config/RedisClient";
 
@@ -33,7 +33,7 @@ export class RateLimiterMiddleware {
       keyGenerator: (req) => {
         const body = req.body as Record<string, unknown> | null | undefined;
         const email = typeof body?.email === "string" ? body.email.toLowerCase().trim() : "";
-        return email || req.ip || "unknown";
+        return email || ipKeyGenerator(req.ip ?? "127.0.0.1");
       },
     });
   }

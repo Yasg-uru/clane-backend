@@ -1,5 +1,4 @@
-import type { CookieOptions, Request } from "express";
-import { env } from "../../config/env";
+import type { Request } from "express";
 import { AuthError } from "../../core/errors/AuthError";
 import type { ITokenService } from "../../core/interfaces/ITokenService";
 import type { UserRole } from "../../core/types";
@@ -15,22 +14,11 @@ import {
 import type { BrandAuthService } from "./BrandAuthService";
 import type { CreatorAuthService } from "./CreatorAuthService";
 import type { BaseAuthService } from "./BaseAuthService";
-
-const REFRESH_TOKEN_COOKIE = "refreshToken";
-const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-
-const refreshCookieOptions: CookieOptions = {
-  httpOnly: true,
-  secure: env.NODE_ENV === "production",
-  sameSite: "strict",
-  maxAge: REFRESH_TOKEN_MAX_AGE_MS,
-};
-
-const clearRefreshCookieOptions: CookieOptions = {
-  httpOnly: true,
-  secure: env.NODE_ENV === "production",
-  sameSite: "strict",
-};
+import {
+  CLEAR_REFRESH_COOKIE_OPTIONS,
+  REFRESH_COOKIE_OPTIONS,
+  REFRESH_TOKEN_COOKIE,
+} from "./auth.constants";
 
 export class AuthController {
   constructor(
@@ -54,7 +42,7 @@ export class AuthController {
   verifyOtp = asyncHandler(async (req, res) => {
     const payload = verifyOtpSchema.parse(req.body);
     const result = await this.getService(payload.role).verifyOtp(payload);
-    res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, refreshCookieOptions);
+    res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS);
     res.status(200).json(
       new ApiResponse("Email verified", { accessToken: result.accessToken, user: result.user }),
     );
@@ -63,7 +51,7 @@ export class AuthController {
   login = asyncHandler(async (req, res) => {
     const payload = loginSchema.parse(req.body);
     const result = await this.getService(payload.role).login(payload);
-    res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, refreshCookieOptions);
+    res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS);
     res.status(200).json(
       new ApiResponse("Logged in", { accessToken: result.accessToken, user: result.user }),
     );
@@ -73,14 +61,14 @@ export class AuthController {
     const rawToken = this.getRefreshTokenFromCookie(req);
     const decoded = this.tokenService.verifyRefreshToken(rawToken);
     const result = await this.getService(decoded.role).refreshToken(rawToken, decoded);
-    res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, refreshCookieOptions);
+    res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS);
     res.status(200).json(new ApiResponse("Token refreshed", { accessToken: result.accessToken }));
   });
 
   logout = asyncHandler(async (req, res) => {
     if (!req.user) throw new AuthError("Unauthorized");
     await this.getService(req.user.role).logout(req.user);
-    res.clearCookie(REFRESH_TOKEN_COOKIE, clearRefreshCookieOptions);
+    res.clearCookie(REFRESH_TOKEN_COOKIE, CLEAR_REFRESH_COOKIE_OPTIONS);
     res.status(200).json(new ApiResponse("Logged out", {}));
   });
 
