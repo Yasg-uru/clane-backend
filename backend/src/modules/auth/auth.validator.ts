@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { USER_ROLES } from "../../types";
+import { USER_ROLES } from "../../core/types";
 
 // Rejects < and > to block embedded HTML/script tags (defense-in-depth against XSS).
 const NO_HTML_RE = /^[^<>]*$/;

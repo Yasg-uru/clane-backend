@@ -1,43 +1,70 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import express from "express";
+import express, { type Application } from "express";
 import helmet from "helmet";
 import { env } from "./config/env";
-import { authRateLimiter, resendOtpRateLimiter } from "./middlewares/rateLimiter";
-import { errorHandler } from "./middlewares/errorHandler";
-import { notFound } from "./middlewares/notFound";
-import { requestLogger } from "./middlewares/requestLogger";
-import { authRoutes } from "./modules/auth/auth.routes";
-import { ApiResponse } from "./utils/ApiResponse";
+import { ApiResponse } from "./core/responses/ApiResponse";
+import type { AuthController } from "./modules/auth/AuthController";
+import type { AuthMiddleware } from "./infrastructure/middleware/AuthMiddleware";
+import type { RateLimiterMiddleware } from "./infrastructure/middleware/RateLimiterMiddleware";
+import type { ErrorHandlerMiddleware } from "./infrastructure/middleware/ErrorHandlerMiddleware";
+import type { NotFoundMiddleware } from "./infrastructure/middleware/NotFoundMiddleware";
+import type { RequestLoggerMiddleware } from "./infrastructure/middleware/RequestLoggerMiddleware";
+import { createAuthRouter } from "./modules/auth/auth.routes";
 
-export const app = express();
+export class App {
+  private readonly express: Application;
 
-// [HIGH] Trust the first proxy hop so req.ip reflects the real client IP behind a load balancer.
-app.set("trust proxy", 1);
+  constructor(
+    private readonly authController: AuthController,
+    private readonly authMiddleware: AuthMiddleware,
+    private readonly rateLimiter: RateLimiterMiddleware,
+    private readonly errorHandler: ErrorHandlerMiddleware,
+    private readonly notFound: NotFoundMiddleware,
+    private readonly requestLogger: RequestLoggerMiddleware,
+  ) {
+    this.express = express();
+    this.initialiseMiddleware();
+    this.initialiseRoutes();
+    this.initialiseErrorHandling();
+  }
 
-app.use(helmet());
-app.use(
-  cors({
-    origin: env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()),
-    credentials: true,
-  }),
-);
-app.use(requestLogger);
-// [HIGH] Constrain body sizes to prevent payload-flooding / DoS.
-app.use(express.json({ limit: "10kb" }));
-app.use(express.urlencoded({ extended: true, limit: "10kb" }));
-app.use(cookieParser(env.COOKIE_SECRET));
+  getExpressApp(): Application {
+    return this.express;
+  }
 
-app.get("/health", (_req, res) => {
-  res.status(200).json(
-    new ApiResponse("OK", {
-      service: "creatorlane-backend",
-    }),
-  );
-});
+  private initialiseMiddleware(): void {
+    this.express.set("trust proxy", 1);
+    this.express.use(helmet());
+    this.express.use(
+      cors({
+        origin: env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()),
+        credentials: true,
+      }),
+    );
+    this.express.use(this.requestLogger.handle);
+    this.express.use(express.json({ limit: "10kb" }));
+    this.express.use(express.urlencoded({ extended: true, limit: "10kb" }));
+    this.express.use(cookieParser(env.COOKIE_SECRET));
+  }
 
-app.use("/api/v1/auth/resend-otp", resendOtpRateLimiter);
-app.use("/api/v1/auth", authRateLimiter, authRoutes);
+  private initialiseRoutes(): void {
+    this.express.get("/health", (_req, res) => {
+      res.status(200).json(
+        new ApiResponse("OK", { service: "creatorlane-backend" }),
+      );
+    });
 
-app.use(notFound);
-app.use(errorHandler);
+    this.express.use("/api/v1/auth/resend-otp", this.rateLimiter.resendOtp);
+    this.express.use(
+      "/api/v1/auth",
+      this.rateLimiter.auth,
+      createAuthRouter(this.authController, this.authMiddleware),
+    );
+  }
+
+  private initialiseErrorHandling(): void {
+    this.express.use(this.notFound.handle);
+    this.express.use(this.errorHandler.handle);
+  }
+}
