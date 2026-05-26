@@ -5,7 +5,7 @@ import { logger } from "../../utils/logger";
 export class EventPublisher implements IEventPublisher {
   constructor(private readonly rabbitMQ: RabbitMQConnection) {}
 
-  publish(routingKey: string, payload: Record<string, unknown>): boolean {
+  publish(routingKey: string, payload: Record<string, unknown>, exchange?: string): boolean {
     const channel = this.rabbitMQ.getChannel();
 
     if (!channel) {
@@ -14,7 +14,7 @@ export class EventPublisher implements IEventPublisher {
     }
 
     return channel.publish(
-      this.rabbitMQ.getExchangeName(),
+      exchange ?? this.rabbitMQ.getExchangeName(),
       routingKey,
       Buffer.from(JSON.stringify(payload)),
       { contentType: "application/json", persistent: true },

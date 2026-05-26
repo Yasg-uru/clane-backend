@@ -5,18 +5,21 @@ import helmet from "helmet";
 import { env } from "./config/env";
 import { ApiResponse } from "./core/responses/ApiResponse";
 import type { AuthController } from "./modules/auth/AuthController";
+import type { CampaignController } from "./modules/campaign/CampaignController";
 import type { AuthMiddleware } from "./infrastructure/middleware/AuthMiddleware";
 import type { RateLimiterMiddleware } from "./infrastructure/middleware/RateLimiterMiddleware";
 import type { ErrorHandlerMiddleware } from "./infrastructure/middleware/ErrorHandlerMiddleware";
 import type { NotFoundMiddleware } from "./infrastructure/middleware/NotFoundMiddleware";
 import type { RequestLoggerMiddleware } from "./infrastructure/middleware/RequestLoggerMiddleware";
 import { createAuthRouter } from "./modules/auth/auth.routes";
+import { createCampaignRouter } from "./modules/campaign/campaign.routes";
 
 export class App {
   private readonly express: Application;
 
   constructor(
     private readonly authController: AuthController,
+    private readonly campaignController: CampaignController,
     private readonly authMiddleware: AuthMiddleware,
     private readonly rateLimiter: RateLimiterMiddleware,
     private readonly errorHandler: ErrorHandlerMiddleware,
@@ -60,6 +63,11 @@ export class App {
       "/api/v1/auth",
       this.rateLimiter.auth,
       createAuthRouter(this.authController, this.authMiddleware),
+    );
+
+    this.express.use(
+      "/api/v1/campaigns",
+      createCampaignRouter(this.campaignController, this.authMiddleware),
     );
   }
 

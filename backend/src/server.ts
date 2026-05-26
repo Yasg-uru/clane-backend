@@ -11,10 +11,13 @@ import { TokenService } from "./infrastructure/services/TokenService";
 import { OtpService } from "./infrastructure/services/OtpService";
 import { EmailService } from "./infrastructure/services/EmailService";
 import { EventPublisher } from "./infrastructure/services/EventPublisher";
+import { CacheService } from "./infrastructure/services/CacheService";
 
 // ─── Repositories ─────────────────────────────────────────────────────────────
 import { BrandRepository } from "./infrastructure/repositories/BrandRepository";
 import { CreatorRepository } from "./infrastructure/repositories/CreatorRepository";
+import { CampaignRepository } from "./infrastructure/repositories/CampaignRepository";
+import { CreatorCampaignMatchRepository } from "./infrastructure/repositories/CreatorCampaignMatchRepository";
 
 // ─── Middleware classes ───────────────────────────────────────────────────────
 import { AuthMiddleware } from "./infrastructure/middleware/AuthMiddleware";
@@ -29,11 +32,34 @@ import { BrandAuthService } from "./modules/auth/BrandAuthService";
 import { CreatorAuthService } from "./modules/auth/CreatorAuthService";
 import { AuthController } from "./modules/auth/AuthController";
 
+// ─── Campaign module ──────────────────────────────────────────────────────────
+import { NicheScorer } from "./modules/campaign/scoring/NicheScorer";
+import { PlatformScorer } from "./modules/campaign/scoring/PlatformScorer";
+import { FollowerScorer } from "./modules/campaign/scoring/FollowerScorer";
+import { LocationScorer } from "./modules/campaign/scoring/LocationScorer";
+import { ProximityScorer } from "./modules/campaign/scoring/ProximityScorer";
+import { RequirementsScorer } from "./modules/campaign/scoring/RequirementsScorer";
+import { MatchScorer } from "./modules/campaign/scoring/MatchScorer";
+import { CampaignService } from "./modules/campaign/CampaignService";
+import { CampaignController } from "./modules/campaign/CampaignController";
+
+// ─── Workers & jobs ───────────────────────────────────────────────────────────
+import { MatchScoreWorker } from "./workers/MatchScoreWorker";
+import { CampaignCleanupWorker } from "./workers/CampaignCleanupWorker";
+import { ViewCountWorker } from "./workers/ViewCountWorker";
+import { CampaignExpiryJob } from "./jobs/CampaignExpiryJob";
+
 export class Server {
   private httpServer!: http.Server;
   private isShuttingDown = false;
 
-  constructor(private readonly app: App) {}
+  constructor(
+    private readonly app: App,
+    private readonly matchScoreWorker: MatchScoreWorker,
+    private readonly campaignCleanupWorker: CampaignCleanupWorker,
+    private readonly viewCountWorker: ViewCountWorker,
+    private readonly campaignExpiryJob: CampaignExpiryJob,
+  ) {}
 
   async start(): Promise<void> {
     const db = DatabaseConnection.getInstance();
@@ -43,6 +69,14 @@ export class Server {
     await db.connect();
     await redis.connect();
     await rabbitMQ.connect();
+
+    await Promise.all([
+      this.matchScoreWorker.start(),
+      this.campaignCleanupWorker.start(),
+      this.viewCountWorker.start(),
+    ]);
+
+    this.campaignExpiryJob.start();
 
     this.httpServer = this.app.getExpressApp().listen(env.PORT, this.onListening);
     this.registerShutdownHandlers();
@@ -86,6 +120,14 @@ export class Server {
     forceExit.unref();
 
     try {
+      this.campaignExpiryJob.stop();
+
+      await Promise.all([
+        this.matchScoreWorker.stop(),
+        this.campaignCleanupWorker.stop(),
+        this.viewCountWorker.stop(),
+      ]);
+
       await this.closeHttpServer();
 
       const db = DatabaseConnection.getInstance();
@@ -127,9 +169,12 @@ const tokenService = new TokenService(redis);
 const otpService = new OtpService(redis);
 const emailService = new EmailService();
 const eventPublisher = new EventPublisher(rabbitMQ);
+const cacheService = new CacheService(redis);
 
 const brandRepository = new BrandRepository();
 const creatorRepository = new CreatorRepository();
+const campaignRepository = new CampaignRepository();
+const creatorCampaignMatchRepository = new CreatorCampaignMatchRepository();
 
 const emailPasswordStrategy = new EmailPasswordStrategy();
 
@@ -151,6 +196,25 @@ const creatorAuthService = new CreatorAuthService(
   emailPasswordStrategy,
 );
 
+const matchScorer = new MatchScorer(
+  new NicheScorer(),
+  new PlatformScorer(),
+  new FollowerScorer(),
+  new LocationScorer(),
+  new ProximityScorer(),
+  new RequirementsScorer(),
+);
+
+const campaignService = new CampaignService(
+  campaignRepository,
+  creatorCampaignMatchRepository,
+  brandRepository,
+  creatorRepository,
+  eventPublisher,
+  cacheService,
+  matchScorer,
+);
+
 const authMiddleware = new AuthMiddleware(tokenService);
 const rateLimiter = new RateLimiterMiddleware(redis);
 const errorHandler = new ErrorHandlerMiddleware();
@@ -158,9 +222,30 @@ const notFound = new NotFoundMiddleware();
 const requestLogger = new RequestLoggerMiddleware();
 
 const authController = new AuthController(brandAuthService, creatorAuthService, tokenService);
+const campaignController = new CampaignController(campaignService);
 
-const app = new App(authController, authMiddleware, rateLimiter, errorHandler, notFound, requestLogger);
-const server = new Server(app);
+const matchScoreWorker = new MatchScoreWorker(creatorCampaignMatchRepository, creatorRepository, rabbitMQ, matchScorer);
+const campaignCleanupWorker = new CampaignCleanupWorker(creatorCampaignMatchRepository, rabbitMQ);
+const viewCountWorker = new ViewCountWorker(campaignRepository, rabbitMQ);
+const campaignExpiryJob = new CampaignExpiryJob(campaignService);
+
+const app = new App(
+  authController,
+  campaignController,
+  authMiddleware,
+  rateLimiter,
+  errorHandler,
+  notFound,
+  requestLogger,
+);
+
+const server = new Server(
+  app,
+  matchScoreWorker,
+  campaignCleanupWorker,
+  viewCountWorker,
+  campaignExpiryJob,
+);
 
 void server.start().catch((error: unknown) => {
   logger.error("Failed to start server", { error });

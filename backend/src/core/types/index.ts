@@ -1,6 +1,35 @@
 import type { BrandDocument } from "../../models/Brand.model";
 import type { CreatorDocument } from "../../models/Creator.model";
 
+export interface GeoPoint {
+  type: "Point";
+  coordinates: [number, number]; // [longitude, latitude] — GeoJSON standard
+}
+
+export interface MatchScoreResult {
+  matchScore: number;
+  matchBreakdown: {
+    nicheScore: number;
+    platformScore: number;
+    followerScore: number;
+    locationScore: number;
+    requirementsScore: number;
+    proximityScore: number;
+  };
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
 export const USER_ROLES = ["brand", "creator"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 

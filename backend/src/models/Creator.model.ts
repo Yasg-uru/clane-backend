@@ -1,5 +1,5 @@
 import { Schema, model, type HydratedDocument } from "mongoose";
-import type { AuthProvider } from "../core/types";
+import type { AuthProvider, GeoPoint } from "../core/types";
 
 export interface Creator {
   role: "creator";
@@ -21,11 +21,20 @@ export interface Creator {
   instagramConnected: boolean;
   instagramVerified: boolean;
   instagramDataLastRefreshedAt?: Date;
+  location?: GeoPoint;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
 export type CreatorDocument = HydratedDocument<Creator>;
+
+const geoPointSchema = new Schema<GeoPoint>(
+  {
+    type: { type: String, enum: ["Point"], required: true },
+    coordinates: { type: [Number], required: true },
+  },
+  { _id: false },
+);
 
 const creatorSchema = new Schema<Creator>(
   {
@@ -66,6 +75,7 @@ const creatorSchema = new Schema<Creator>(
     instagramConnected: { type: Boolean, default: false },
     instagramVerified: { type: Boolean, default: false },
     instagramDataLastRefreshedAt: { type: Date },
+    location: { type: geoPointSchema },
   },
   {
     timestamps: true,
@@ -83,5 +93,7 @@ const creatorSchema = new Schema<Creator>(
     },
   },
 );
+
+creatorSchema.index({ location: "2dsphere" }, { sparse: true });
 
 export const CreatorModel = model<Creator>("Creator", creatorSchema);
