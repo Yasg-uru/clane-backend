@@ -6,6 +6,7 @@ import { env } from "./config/env";
 import { ApiResponse } from "./core/responses/ApiResponse";
 import type { AuthController } from "./modules/auth/AuthController";
 import type { CampaignController } from "./modules/campaign/CampaignController";
+import type { BidController } from "./modules/bid/BidController";
 import type { AuthMiddleware } from "./infrastructure/middleware/AuthMiddleware";
 import type { RateLimiterMiddleware } from "./infrastructure/middleware/RateLimiterMiddleware";
 import type { ErrorHandlerMiddleware } from "./infrastructure/middleware/ErrorHandlerMiddleware";
@@ -13,6 +14,7 @@ import type { NotFoundMiddleware } from "./infrastructure/middleware/NotFoundMid
 import type { RequestLoggerMiddleware } from "./infrastructure/middleware/RequestLoggerMiddleware";
 import { createAuthRouter } from "./modules/auth/auth.routes";
 import { createCampaignRouter } from "./modules/campaign/campaign.routes";
+import { createBidRouter, createNotificationRouter } from "./modules/bid/bid.routes";
 
 export class App {
   private readonly express: Application;
@@ -20,6 +22,7 @@ export class App {
   constructor(
     private readonly authController: AuthController,
     private readonly campaignController: CampaignController,
+    private readonly bidController: BidController,
     private readonly authMiddleware: AuthMiddleware,
     private readonly rateLimiter: RateLimiterMiddleware,
     private readonly errorHandler: ErrorHandlerMiddleware,
@@ -68,6 +71,16 @@ export class App {
     this.express.use(
       "/api/v1/campaigns",
       createCampaignRouter(this.campaignController, this.authMiddleware),
+    );
+
+    this.express.use(
+      "/api/v1/bids",
+      createBidRouter(this.bidController, this.authMiddleware),
+    );
+
+    this.express.use(
+      "/api/v1/notifications",
+      createNotificationRouter(this.bidController, this.authMiddleware),
     );
   }
 

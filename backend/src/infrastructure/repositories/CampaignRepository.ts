@@ -1,4 +1,4 @@
-import type { FilterQuery } from "mongoose";
+import type { ClientSession, FilterQuery } from "mongoose";
 import { CampaignModel, type CampaignDocument, type CampaignStatus } from "../../models/Campaign.model";
 import type { PaginatedResult } from "../../core/types";
 import { BaseRepository } from "./BaseRepository";
@@ -112,11 +112,12 @@ export class CampaignRepository extends BaseRepository<CampaignDocument> {
     campaignId: string,
     status: CampaignStatus,
     meta?: Partial<Record<string, unknown>>,
+    session?: ClientSession,
   ): Promise<CampaignDocument | null> {
     return CampaignModel.findByIdAndUpdate(
       campaignId,
       { status, ...meta },
-      { new: true },
+      { new: true, session },
     ).exec();
   }
 

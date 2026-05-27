@@ -43,11 +43,20 @@ import { MatchScorer } from "./modules/campaign/scoring/MatchScorer";
 import { CampaignService } from "./modules/campaign/CampaignService";
 import { CampaignController } from "./modules/campaign/CampaignController";
 
+// ─── Bid module ───────────────────────────────────────────────────────────────
+import { LockService } from "./infrastructure/services/LockService";
+import { BidRepository } from "./infrastructure/repositories/BidRepository";
+import { NotificationRepository } from "./infrastructure/repositories/NotificationRepository";
+import { BidService } from "./modules/bid/BidService";
+import { BidController } from "./modules/bid/BidController";
+
 // ─── Workers & jobs ───────────────────────────────────────────────────────────
 import { MatchScoreWorker } from "./workers/MatchScoreWorker";
 import { CampaignCleanupWorker } from "./workers/CampaignCleanupWorker";
 import { ViewCountWorker } from "./workers/ViewCountWorker";
 import { CampaignExpiryJob } from "./jobs/CampaignExpiryJob";
+import { BidNotificationWorker } from "./workers/BidNotificationWorker";
+import { EscrowInitWorker } from "./workers/EscrowInitWorker";
 
 export class Server {
   private httpServer!: http.Server;
@@ -59,6 +68,8 @@ export class Server {
     private readonly campaignCleanupWorker: CampaignCleanupWorker,
     private readonly viewCountWorker: ViewCountWorker,
     private readonly campaignExpiryJob: CampaignExpiryJob,
+    private readonly bidNotificationWorker: BidNotificationWorker,
+    private readonly escrowInitWorker: EscrowInitWorker,
   ) {}
 
   async start(): Promise<void> {
@@ -74,6 +85,8 @@ export class Server {
       this.matchScoreWorker.start(),
       this.campaignCleanupWorker.start(),
       this.viewCountWorker.start(),
+      this.bidNotificationWorker.start(),
+      this.escrowInitWorker.start(),
     ]);
 
     this.campaignExpiryJob.start();
@@ -126,6 +139,8 @@ export class Server {
         this.matchScoreWorker.stop(),
         this.campaignCleanupWorker.stop(),
         this.viewCountWorker.stop(),
+        this.bidNotificationWorker.stop(),
+        this.escrowInitWorker.stop(),
       ]);
 
       await this.closeHttpServer();
@@ -224,14 +239,35 @@ const requestLogger = new RequestLoggerMiddleware();
 const authController = new AuthController(brandAuthService, creatorAuthService, tokenService);
 const campaignController = new CampaignController(campaignService);
 
+const lockService = new LockService(redis);
+
+const bidRepository = new BidRepository();
+const notificationRepository = new NotificationRepository();
+
+const bidService = new BidService(
+  bidRepository,
+  campaignRepository,
+  brandRepository,
+  creatorRepository,
+  creatorCampaignMatchRepository,
+  eventPublisher,
+  cacheService,
+  lockService,
+);
+
+const bidController = new BidController(bidService, notificationRepository);
+
 const matchScoreWorker = new MatchScoreWorker(creatorCampaignMatchRepository, creatorRepository, rabbitMQ, matchScorer);
 const campaignCleanupWorker = new CampaignCleanupWorker(creatorCampaignMatchRepository, rabbitMQ);
 const viewCountWorker = new ViewCountWorker(campaignRepository, rabbitMQ);
 const campaignExpiryJob = new CampaignExpiryJob(campaignService);
+const bidNotificationWorker = new BidNotificationWorker(notificationRepository, rabbitMQ);
+const escrowInitWorker = new EscrowInitWorker(rabbitMQ);
 
 const app = new App(
   authController,
   campaignController,
+  bidController,
   authMiddleware,
   rateLimiter,
   errorHandler,
@@ -245,6 +281,8 @@ const server = new Server(
   campaignCleanupWorker,
   viewCountWorker,
   campaignExpiryJob,
+  bidNotificationWorker,
+  escrowInitWorker,
 );
 
 void server.start().catch((error: unknown) => {

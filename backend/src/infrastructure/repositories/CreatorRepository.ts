@@ -57,4 +57,8 @@ export class CreatorRepository extends BaseRepository<CreatorDocument> {
       { instagramHandle: 1, instagramFollowers: 1, niche: 1, city: 1, instagramConnected: 1, location: 1 },
     ).exec();
   }
+
+  async findByIds(ids: string[]): Promise<CreatorDocument[]> {
+    return CreatorModel.find({ _id: { $in: ids } }).exec();
+  }
 }

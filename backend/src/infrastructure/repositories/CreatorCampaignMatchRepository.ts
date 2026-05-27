@@ -82,6 +82,22 @@ export class CreatorCampaignMatchRepository {
       .exec();
   }
 
+  async findMatchesForCampaign(
+    campaignId: string,
+    creatorIds: string[],
+  ): Promise<Map<string, number>> {
+    const matches = await CreatorCampaignMatchModel.find({
+      campaignId: new Types.ObjectId(campaignId),
+      creatorId: { $in: creatorIds.map((id) => new Types.ObjectId(id)) },
+    }).exec();
+
+    const map = new Map<string, number>();
+    for (const match of matches) {
+      map.set(match.creatorId.toString(), match.matchScore);
+    }
+    return map;
+  }
+
   async deleteMatchesForCampaign(campaignId: string): Promise<void> {
     await CreatorCampaignMatchModel.deleteMany({
       campaignId: new Types.ObjectId(campaignId),
