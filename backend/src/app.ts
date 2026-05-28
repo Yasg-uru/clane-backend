@@ -7,6 +7,8 @@ import { ApiResponse } from "./core/responses/ApiResponse";
 import type { AuthController } from "./modules/auth/AuthController";
 import type { CampaignController } from "./modules/campaign/CampaignController";
 import type { BidController } from "./modules/bid/BidController";
+import type { EscrowController } from "./modules/escrow/EscrowController";
+import type { CollabController } from "./modules/collab/CollabController";
 import type { AuthMiddleware } from "./infrastructure/middleware/AuthMiddleware";
 import type { RateLimiterMiddleware } from "./infrastructure/middleware/RateLimiterMiddleware";
 import type { ErrorHandlerMiddleware } from "./infrastructure/middleware/ErrorHandlerMiddleware";
@@ -15,6 +17,8 @@ import type { RequestLoggerMiddleware } from "./infrastructure/middleware/Reques
 import { createAuthRouter } from "./modules/auth/auth.routes";
 import { createCampaignRouter } from "./modules/campaign/campaign.routes";
 import { createBidRouter, createNotificationRouter } from "./modules/bid/bid.routes";
+import { createEscrowRouter, createWebhookRouter } from "./modules/escrow/escrow.routes";
+import { createCollabRouter } from "./modules/collab/collab.routes";
 
 export class App {
   private readonly express: Application;
@@ -23,6 +27,8 @@ export class App {
     private readonly authController: AuthController,
     private readonly campaignController: CampaignController,
     private readonly bidController: BidController,
+    private readonly escrowController: EscrowController,
+    private readonly collabController: CollabController,
     private readonly authMiddleware: AuthMiddleware,
     private readonly rateLimiter: RateLimiterMiddleware,
     private readonly errorHandler: ErrorHandlerMiddleware,
@@ -49,6 +55,11 @@ export class App {
       }),
     );
     this.express.use(this.requestLogger.handle);
+
+    // Razorpay webhook needs the raw body string for HMAC verification.
+    // Mount this route BEFORE express.json so the body is preserved as a Buffer.
+    this.express.use("/api/v1/webhooks", createWebhookRouter(this.escrowController));
+
     this.express.use(express.json({ limit: "10kb" }));
     this.express.use(express.urlencoded({ extended: true, limit: "10kb" }));
     this.express.use(cookieParser(env.COOKIE_SECRET));
@@ -81,6 +92,16 @@ export class App {
     this.express.use(
       "/api/v1/notifications",
       createNotificationRouter(this.bidController, this.authMiddleware),
+    );
+
+    this.express.use(
+      "/api/v1/escrow",
+      createEscrowRouter(this.escrowController, this.authMiddleware),
+    );
+
+    this.express.use(
+      "/api/v1/collab",
+      createCollabRouter(this.collabController, this.authMiddleware),
     );
   }
 

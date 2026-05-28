@@ -33,6 +33,7 @@
     "mongoose": "^8.19.4",
     "nodemailer": "^8.0.7",
     "rate-limit-redis": "^4.3.0",
+    "razorpay": "^2.9.6",
     "winston": "^3.18.3",
     "zod": "^4.1.12"
   },

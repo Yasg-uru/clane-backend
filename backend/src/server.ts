@@ -50,6 +50,14 @@ import { NotificationRepository } from "./infrastructure/repositories/Notificati
 import { BidService } from "./modules/bid/BidService";
 import { BidController } from "./modules/bid/BidController";
 
+// ─── Escrow module ────────────────────────────────────────────────────────────
+import { EscrowRepository } from "./infrastructure/repositories/EscrowRepository";
+import { CollabRoomRepository } from "./infrastructure/repositories/CollabRoomRepository";
+import { RazorpayService } from "./infrastructure/services/RazorpayService";
+import { EscrowService } from "./modules/escrow/EscrowService";
+import { EscrowController } from "./modules/escrow/EscrowController";
+import { CollabController } from "./modules/collab/CollabController";
+
 // ─── Workers & jobs ───────────────────────────────────────────────────────────
 import { MatchScoreWorker } from "./workers/MatchScoreWorker";
 import { CampaignCleanupWorker } from "./workers/CampaignCleanupWorker";
@@ -57,6 +65,9 @@ import { ViewCountWorker } from "./workers/ViewCountWorker";
 import { CampaignExpiryJob } from "./jobs/CampaignExpiryJob";
 import { BidNotificationWorker } from "./workers/BidNotificationWorker";
 import { EscrowInitWorker } from "./workers/EscrowInitWorker";
+import { EscrowFundedWorker } from "./workers/EscrowFundedWorker";
+import { EscrowPaymentTimeoutJob } from "./jobs/EscrowPaymentTimeoutJob";
+import { EscrowAutoRefundJob } from "./jobs/EscrowAutoRefundJob";
 
 export class Server {
   private httpServer!: http.Server;
@@ -70,6 +81,9 @@ export class Server {
     private readonly campaignExpiryJob: CampaignExpiryJob,
     private readonly bidNotificationWorker: BidNotificationWorker,
     private readonly escrowInitWorker: EscrowInitWorker,
+    private readonly escrowFundedWorker: EscrowFundedWorker,
+    private readonly escrowPaymentTimeoutJob: EscrowPaymentTimeoutJob,
+    private readonly escrowAutoRefundJob: EscrowAutoRefundJob,
   ) {}
 
   async start(): Promise<void> {
@@ -87,9 +101,12 @@ export class Server {
       this.viewCountWorker.start(),
       this.bidNotificationWorker.start(),
       this.escrowInitWorker.start(),
+      this.escrowFundedWorker.start(),
     ]);
 
     this.campaignExpiryJob.start();
+    this.escrowPaymentTimeoutJob.start();
+    this.escrowAutoRefundJob.start();
 
     this.httpServer = this.app.getExpressApp().listen(env.PORT, this.onListening);
     this.registerShutdownHandlers();
@@ -134,6 +151,8 @@ export class Server {
 
     try {
       this.campaignExpiryJob.stop();
+      this.escrowPaymentTimeoutJob.stop();
+      this.escrowAutoRefundJob.stop();
 
       await Promise.all([
         this.matchScoreWorker.stop(),
@@ -141,6 +160,7 @@ export class Server {
         this.viewCountWorker.stop(),
         this.bidNotificationWorker.stop(),
         this.escrowInitWorker.stop(),
+        this.escrowFundedWorker.stop(),
       ]);
 
       await this.closeHttpServer();
@@ -257,17 +277,46 @@ const bidService = new BidService(
 
 const bidController = new BidController(bidService, notificationRepository);
 
+const razorpayService = new RazorpayService({
+  keyId: env.RAZORPAY_KEY_ID,
+  keySecret: env.RAZORPAY_KEY_SECRET,
+  webhookSecret: env.RAZORPAY_WEBHOOK_SECRET,
+  accountNumber: env.RAZORPAY_ACCOUNT_NUMBER,
+});
+const escrowRepository = new EscrowRepository();
+const collabRoomRepository = new CollabRoomRepository();
+
+const escrowService = new EscrowService(
+  escrowRepository,
+  collabRoomRepository,
+  bidRepository,
+  campaignRepository,
+  razorpayService,
+  eventPublisher,
+  notificationRepository,
+  lockService,
+  cacheService,
+);
+
+const escrowController = new EscrowController(escrowService);
+const collabController = new CollabController(collabRoomRepository);
+
 const matchScoreWorker = new MatchScoreWorker(creatorCampaignMatchRepository, creatorRepository, rabbitMQ, matchScorer);
 const campaignCleanupWorker = new CampaignCleanupWorker(creatorCampaignMatchRepository, rabbitMQ);
 const viewCountWorker = new ViewCountWorker(campaignRepository, rabbitMQ);
 const campaignExpiryJob = new CampaignExpiryJob(campaignService);
 const bidNotificationWorker = new BidNotificationWorker(notificationRepository, rabbitMQ);
-const escrowInitWorker = new EscrowInitWorker(rabbitMQ);
+const escrowInitWorker = new EscrowInitWorker(rabbitMQ, escrowService);
+const escrowFundedWorker = new EscrowFundedWorker(escrowService, notificationRepository, rabbitMQ);
+const escrowPaymentTimeoutJob = new EscrowPaymentTimeoutJob(escrowRepository, escrowService);
+const escrowAutoRefundJob = new EscrowAutoRefundJob(escrowRepository, escrowService);
 
 const app = new App(
   authController,
   campaignController,
   bidController,
+  escrowController,
+  collabController,
   authMiddleware,
   rateLimiter,
   errorHandler,
@@ -283,6 +332,9 @@ const server = new Server(
   campaignExpiryJob,
   bidNotificationWorker,
   escrowInitWorker,
+  escrowFundedWorker,
+  escrowPaymentTimeoutJob,
+  escrowAutoRefundJob,
 );
 
 void server.start().catch((error: unknown) => {

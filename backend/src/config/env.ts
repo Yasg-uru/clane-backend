@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { cleanEnv, makeValidator, port, str, url } from "envalid";
+import { cleanEnv, makeValidator, num, port, str, url } from "envalid";
 
 // [CRITICAL] JWT/cookie secrets must be at least 32 chars to be cryptographically safe.
 const secret = makeValidator<string>((value) => {
@@ -44,4 +44,11 @@ export const env = cleanEnv(process.env, {
   GOOGLE_CLIENT_ID: str(),
   GOOGLE_CLIENT_SECRET: str(),
   GOOGLE_REDIRECT_URI: url(),
+  // Razorpay
+  RAZORPAY_KEY_ID: str(),
+  RAZORPAY_KEY_SECRET: str(),
+  RAZORPAY_WEBHOOK_SECRET: str(),
+  RAZORPAY_ACCOUNT_NUMBER: str(),
+  PAYMENT_TIMEOUT_HOURS: num({ default: 24 }),
+  FRONTEND_PAYMENT_URL: url(),
 });
