@@ -7,12 +7,7 @@ import type { CollabRoomDocument } from "../../models/CollabRoom.model";
 import { UserRole } from "../../core/types";
 import { collabListQuerySchema } from "../escrow/escrow.validator";
 import type { CollabRoomView } from "../escrow/escrow.types";
-
-const toParam = (val: string | string[] | undefined): string | undefined => {
-  if (typeof val === "string") return val;
-  if (Array.isArray(val)) return val[0];
-  return undefined;
-};
+import { toParam } from "../../utils/requestParam";
 
 export class CollabController {
   constructor(private readonly collabRoomRepository: CollabRoomRepository) {}

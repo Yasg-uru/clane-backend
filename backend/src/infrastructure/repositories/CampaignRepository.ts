@@ -21,22 +21,6 @@ export class CampaignRepository extends BaseRepository<CampaignDocument> {
     return CampaignModel.findById(id).exec();
   }
 
-  async findByEmail(_email: string): Promise<CampaignDocument | null> {
-    return null;
-  }
-
-  async findByEmailWithSecrets(_email: string): Promise<CampaignDocument | null> {
-    return null;
-  }
-
-  async findByIdWithRefreshToken(_id: string): Promise<CampaignDocument | null> {
-    return null;
-  }
-
-  async emailExists(_email: string): Promise<boolean> {
-    return false;
-  }
-
   async create(data: Partial<Record<string, unknown>>): Promise<CampaignDocument> {
     return CampaignModel.create(data);
   }
@@ -137,25 +121,5 @@ export class CampaignRepository extends BaseRepository<CampaignDocument> {
 
   async slugExists(slug: string): Promise<boolean> {
     return Boolean(await CampaignModel.exists({ slug }));
-  }
-
-  private buildPaginatedResult(
-    items: CampaignDocument[],
-    total: number,
-    page: number,
-    limit: number,
-  ): PaginatedResult<CampaignDocument> {
-    const totalPages = Math.ceil(total / limit);
-    return {
-      items,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
-    };
   }
 }

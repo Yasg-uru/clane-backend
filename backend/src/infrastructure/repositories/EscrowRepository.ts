@@ -8,22 +8,6 @@ export class EscrowRepository extends BaseRepository<EscrowDocument> {
     return EscrowModel.findById(id).exec();
   }
 
-  async findByEmail(_email: string): Promise<EscrowDocument | null> {
-    return null;
-  }
-
-  async findByEmailWithSecrets(_email: string): Promise<EscrowDocument | null> {
-    return null;
-  }
-
-  async findByIdWithRefreshToken(_id: string): Promise<EscrowDocument | null> {
-    return null;
-  }
-
-  async emailExists(_email: string): Promise<boolean> {
-    return false;
-  }
-
   async create(data: Partial<Record<string, unknown>>): Promise<EscrowDocument> {
     const [escrow] = await EscrowModel.create([data]);
     if (!escrow) throw new Error("Failed to create escrow");
@@ -62,7 +46,17 @@ export class EscrowRepository extends BaseRepository<EscrowDocument> {
   ): Promise<PaginatedResult<EscrowDocument>> {
     const query: FilterQuery<EscrowDocument> = { brandId };
     if (status) query.status = status;
-    return this.runPaginated(query, page, limit);
+
+    const [total, items] = await Promise.all([
+      EscrowModel.countDocuments(query),
+      EscrowModel.find(query)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
+    ]);
+
+    return this.buildPaginatedResult(items, total, page, limit);
   }
 
   async findByCreatorId(
@@ -73,7 +67,17 @@ export class EscrowRepository extends BaseRepository<EscrowDocument> {
   ): Promise<PaginatedResult<EscrowDocument>> {
     const query: FilterQuery<EscrowDocument> = { creatorId };
     if (status) query.status = status;
-    return this.runPaginated(query, page, limit);
+
+    const [total, items] = await Promise.all([
+      EscrowModel.countDocuments(query),
+      EscrowModel.find(query)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
+    ]);
+
+    return this.buildPaginatedResult(items, total, page, limit);
   }
 
   async findPendingPaymentExpired(): Promise<EscrowDocument[]> {
@@ -119,33 +123,5 @@ export class EscrowRepository extends BaseRepository<EscrowDocument> {
 
   async startSession(): Promise<ClientSession> {
     return mongoose.startSession();
-  }
-
-  private async runPaginated(
-    query: FilterQuery<EscrowDocument>,
-    page: number,
-    limit: number,
-  ): Promise<PaginatedResult<EscrowDocument>> {
-    const [total, items] = await Promise.all([
-      EscrowModel.countDocuments(query),
-      EscrowModel.find(query)
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
-    ]);
-
-    const totalPages = Math.ceil(total / limit);
-    return {
-      items,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
-    };
   }
 }

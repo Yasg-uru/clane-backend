@@ -22,22 +22,6 @@ export class BidRepository extends BaseRepository<BidDocument> {
     return BidModel.findById(id).exec();
   }
 
-  async findByEmail(_email: string): Promise<BidDocument | null> {
-    return null;
-  }
-
-  async findByEmailWithSecrets(_email: string): Promise<BidDocument | null> {
-    return null;
-  }
-
-  async findByIdWithRefreshToken(_id: string): Promise<BidDocument | null> {
-    return null;
-  }
-
-  async emailExists(_email: string): Promise<boolean> {
-    return false;
-  }
-
   async create(data: Partial<Record<string, unknown>>): Promise<BidDocument> {
     const [bid] = await BidModel.create([data]);
     if (!bid) throw new Error("Failed to create bid");
@@ -196,25 +180,5 @@ export class BidRepository extends BaseRepository<BidDocument> {
       case "submitted_at_desc": return { createdAt: -1 };
       default: return { createdAt: -1 };
     }
-  }
-
-  private buildPaginatedResult(
-    items: BidDocument[],
-    total: number,
-    page: number,
-    limit: number,
-  ): PaginatedResult<BidDocument> {
-    const totalPages = Math.ceil(total / limit);
-    return {
-      items,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
-    };
   }
 }

@@ -2,34 +2,19 @@ import type { EscrowRepository } from "../infrastructure/repositories/EscrowRepo
 import type { EscrowService } from "../modules/escrow/EscrowService";
 import { AUTO_REFUND_JOB_INTERVAL_MS } from "../modules/escrow/escrow.constants";
 import { logger } from "../utils/logger";
+import { BaseJob } from "./BaseJob";
 
-export class EscrowAutoRefundJob {
-  private timer: NodeJS.Timeout | null = null;
+export class EscrowAutoRefundJob extends BaseJob {
+  protected readonly intervalMs = AUTO_REFUND_JOB_INTERVAL_MS;
 
   constructor(
     private readonly escrowRepository: EscrowRepository,
     private readonly escrowService: EscrowService,
-  ) {}
-
-  start(): void {
-    this.timer = setInterval(() => {
-      this.run().catch((err: unknown) => {
-        logger.error("EscrowAutoRefundJob: tick failed", { err });
-      });
-    }, AUTO_REFUND_JOB_INTERVAL_MS);
-
-    logger.info("EscrowAutoRefundJob started", { intervalMs: AUTO_REFUND_JOB_INTERVAL_MS });
+  ) {
+    super();
   }
 
-  stop(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-    logger.info("EscrowAutoRefundJob stopped");
-  }
-
-  private async run(): Promise<void> {
+  protected async run(): Promise<void> {
     const expired = await this.escrowRepository.findFundedCollabExpired();
     if (expired.length === 0) return;
 

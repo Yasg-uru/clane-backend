@@ -44,7 +44,8 @@ src/
       ApiResponse.ts            Generic success wrapper (+ static factory).
       ApiError.ts               Error response builder used by ErrorHandlerMiddleware.
     interfaces/
-      IRepository.ts            Generic CRUD contract.
+      IRepository.ts            Core CRUD contract (findById, create, updateById, deleteById).
+      IAuthRepository.ts        Extends IRepository — adds auth methods (findByEmail, findByEmailWithSecrets, findByIdWithRefreshToken, emailExists). Implemented only by BrandRepository and CreatorRepository.
       IAuthStrategy.ts          Strategy pattern — authenticate(credentials).
       ITokenService.ts          Token sign/verify/hash/blacklist.
       IOtpService.ts            OTP generate/verify/lock/cooldown.
@@ -56,9 +57,9 @@ src/
 
   infrastructure/
     repositories/
-      BaseRepository.ts         Abstract generic repository.
-      BrandRepository.ts        extends BaseRepository<BrandDocument>.
-      CreatorRepository.ts      extends BaseRepository<CreatorDocument>.
+      BaseRepository.ts         Abstract generic repository — core CRUD + protected buildPaginatedResult<U>().
+      BrandRepository.ts        extends BaseRepository<BrandDocument> + implements IAuthRepository methods.
+      CreatorRepository.ts      extends BaseRepository<CreatorDocument> + implements IAuthRepository methods.
     services/
       TokenService.ts           implements ITokenService — owns all JWT + blacklist logic.
       OtpService.ts             implements IOtpService — owns all Redis OTP logic.
@@ -87,10 +88,19 @@ src/
       auth.validator.ts           Zod schemas + inferred types. Unchanged.
       auth.types.ts               AuthResult, RefreshResult — module-local types.
 
+  workers/
+    BaseWorker.ts               Abstract — Template Method for RabbitMQ consumers. Subclasses declare queueName, exchangeName, routingKey (string or string[]), prefetch, and implement handleMessage(msg).
+    *.Worker.ts                 All workers extend BaseWorker. Never duplicate start/stop/channel boilerplate.
+
+  jobs/
+    BaseJob.ts                  Abstract — Template Method for cron-style jobs. Subclasses declare intervalMs and implement run(): Promise<void>.
+    *.Job.ts                    All jobs extend BaseJob. Never duplicate setInterval/clearInterval boilerplate.
+
   utils/
     asyncHandler.ts             Wraps async route handlers, forwards errors.
     logger.ts                   Winston logger singleton — use this, never console.log.
     crypto.ts                   AES-256-GCM encrypt/decrypt for Instagram tokens.
+    requestParam.ts             toParam(val) — extracts a single string param from Express req.params or req.query. Import in all controllers instead of defining locally.
 
   app.ts                        class App — Express wiring + route mounting.
   server.ts                     class Server + COMPOSITION ROOT (all new calls live here).
@@ -136,6 +146,8 @@ src/
 - `BaseRepository<T>` is an abstract class. Every Mongoose query lives inside a concrete repository method.
 - Services never call `Model.findOne(...)` — they call `this.repository.findByEmail(...)`.
 - Sensitive fields are accessed only through explicit repository methods: `findByEmailWithSecrets`, `findByIdWithRefreshToken`.
+- **ISP**: `IRepository<T>` defines only core CRUD (`findById`, `create`, `updateById`, `deleteById`). Auth-specific methods (`findByEmail`, `findByEmailWithSecrets`, `findByIdWithRefreshToken`, `emailExists`) belong on `BrandRepository` and `CreatorRepository` only — never stub them on domain repositories.
+- **Pagination**: Always use `this.buildPaginatedResult(items, total, page, limit)` from `BaseRepository`. Never copy-paste the `Math.ceil(total / limit)` formula.
 
 ```ts
 // correct — repository encapsulates all DB access
@@ -226,6 +238,59 @@ export const createAuthRouter = (controller: AuthController, authMiddleware: Aut
 - Export a TypeScript interface (plain shape), a `HydratedDocument` type alias, and the Mongoose model.
 - `role` field: `immutable: true`. Sensitive fields (`passwordHash`, `refreshToken`, `instagramAccessToken`): `select: false`.
 - `toJSON.transform` strips all secrets as a safety net (not the primary defence).
+
+### Workers (`src/workers/`)
+
+- Every worker **extends `BaseWorker`** (Template Method pattern). `BaseWorker` owns the RabbitMQ channel lifecycle and consumer registration.
+- Subclasses declare four `protected readonly` properties: `queueName`, `exchangeName`, `routingKey` (accepts `string | string[]` for multi-key binding), `prefetch`.
+- Subclasses implement one method: `protected async handleMessage(msg: ConsumeMessage): Promise<void>`. This method is responsible for its own ack/nack.
+- Never duplicate `start()` / `stop()` / channel setup. If `start()` needs custom exchange type, that is the only reason to override it.
+
+```ts
+// correct — declare properties + implement handleMessage only
+export class MyWorker extends BaseWorker {
+  protected readonly queueName = "creatorlane.my.queue";
+  protected readonly exchangeName = MY_EXCHANGE;
+  protected readonly routingKey = "event.happened";
+  protected readonly prefetch = 10;
+
+  constructor(private readonly myService: MyService, rabbitMQ: RabbitMQConnection) {
+    super(rabbitMQ);
+  }
+
+  protected async handleMessage(msg: ConsumeMessage): Promise<void> {
+    const channel = this.channel;
+    if (!channel) return;
+    try {
+      // process message
+      channel.ack(msg);
+    } catch (err) {
+      channel.nack(msg, false, true);
+    }
+  }
+}
+```
+
+### Jobs (`src/jobs/`)
+
+- Every job **extends `BaseJob`** (Template Method pattern). `BaseJob` owns `setInterval` / `clearInterval` and error catching.
+- Subclasses declare `protected readonly intervalMs: number` and implement `protected async run(): Promise<void>`.
+- Never duplicate `start()` / `stop()` / timer boilerplate.
+
+```ts
+// correct — declare intervalMs + implement run only
+export class MyJob extends BaseJob {
+  protected readonly intervalMs = 5 * 60 * 1000;
+
+  constructor(private readonly myService: MyService) {
+    super();
+  }
+
+  protected async run(): Promise<void> {
+    await this.myService.doPeriodicWork();
+  }
+}
+```
 
 ### App class (`src/app.ts`)
 

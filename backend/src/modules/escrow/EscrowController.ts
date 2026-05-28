@@ -6,12 +6,7 @@ import { logger } from "../../utils/logger";
 import type { EscrowService } from "./EscrowService";
 import { escrowListQuerySchema } from "./escrow.validator";
 import { UserRole } from "../../core/types";
-
-const toParam = (val: string | string[] | undefined): string | undefined => {
-  if (typeof val === "string") return val;
-  if (Array.isArray(val)) return val[0];
-  return undefined;
-};
+import { toParam } from "../../utils/requestParam";
 
 export class EscrowController {
   constructor(private readonly escrowService: EscrowService) {}

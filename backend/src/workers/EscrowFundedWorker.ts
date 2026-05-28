@@ -1,4 +1,4 @@
-import type { Channel, ConsumeMessage } from "amqplib";
+import type { ConsumeMessage } from "amqplib";
 import type { RabbitMQConnection } from "../config/RabbitMQConnection";
 import type { NotificationRepository } from "../infrastructure/repositories/NotificationRepository";
 import type { EscrowService } from "../modules/escrow/EscrowService";
@@ -6,53 +6,23 @@ import { ConflictError } from "../core/errors/ConflictError";
 import { ESCROW_EXCHANGE_NAME } from "../config/config.constants";
 import { logger } from "../utils/logger";
 import { UserRole } from "../core/types";
+import { BaseWorker } from "./BaseWorker";
 
-const QUEUE_NAME = "creatorlane.escrow.funded";
-const ROUTING_KEY = "escrow.funded";
-const PREFETCH = 10;
-
-export class EscrowFundedWorker {
-  private channel: Channel | null = null;
-  private consumerTag: string | null = null;
+export class EscrowFundedWorker extends BaseWorker {
+  protected readonly queueName = "creatorlane.escrow.funded";
+  protected readonly exchangeName = ESCROW_EXCHANGE_NAME;
+  protected readonly routingKey = "escrow.funded";
+  protected readonly prefetch = 10;
 
   constructor(
     private readonly escrowService: EscrowService,
     private readonly notificationRepository: NotificationRepository,
-    private readonly rabbitMQ: RabbitMQConnection,
-  ) {}
-
-  async start(): Promise<void> {
-    this.channel = await this.rabbitMQ.createChannel();
-    await this.channel.assertExchange(ESCROW_EXCHANGE_NAME, "topic", { durable: true });
-    await this.channel.assertQueue(QUEUE_NAME, { durable: true });
-    await this.channel.bindQueue(QUEUE_NAME, ESCROW_EXCHANGE_NAME, ROUTING_KEY);
-    this.channel.prefetch(PREFETCH);
-
-    const { consumerTag } = await this.channel.consume(
-      QUEUE_NAME,
-      (msg) => {
-        if (!msg) return;
-        void this.handleMessage(msg);
-      },
-      { noAck: false },
-    );
-
-    this.consumerTag = consumerTag;
-    logger.info("EscrowFundedWorker started");
+    rabbitMQ: RabbitMQConnection,
+  ) {
+    super(rabbitMQ);
   }
 
-  async stop(): Promise<void> {
-    if (this.channel && this.consumerTag) {
-      await this.channel.cancel(this.consumerTag);
-    }
-    if (this.channel) {
-      await this.channel.close();
-      this.channel = null;
-    }
-    logger.info("EscrowFundedWorker stopped");
-  }
-
-  private async handleMessage(msg: ConsumeMessage): Promise<void> {
+  protected async handleMessage(msg: ConsumeMessage): Promise<void> {
     const channel = this.channel;
     if (!channel) return;
 

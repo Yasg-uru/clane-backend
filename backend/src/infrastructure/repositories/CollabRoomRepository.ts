@@ -1,5 +1,6 @@
 import type { FilterQuery } from "mongoose";
-import { CollabRoomModel, type CollabRoomDocument, type CollabRoomStatus } from "../../models/CollabRoom.model";
+import { CollabRoomModel, type CollabRoomDocument } from "../../models/CollabRoom.model";
+import type { CollabRoomStatus } from "../../models/CollabRoom.model";
 import type { PaginatedResult } from "../../core/types";
 import { BaseRepository } from "./BaseRepository";
 
@@ -12,22 +13,6 @@ export interface CollabRoomFilters {
 export class CollabRoomRepository extends BaseRepository<CollabRoomDocument> {
   async findById(id: string): Promise<CollabRoomDocument | null> {
     return CollabRoomModel.findById(id).exec();
-  }
-
-  async findByEmail(_email: string): Promise<CollabRoomDocument | null> {
-    return null;
-  }
-
-  async findByEmailWithSecrets(_email: string): Promise<CollabRoomDocument | null> {
-    return null;
-  }
-
-  async findByIdWithRefreshToken(_id: string): Promise<CollabRoomDocument | null> {
-    return null;
-  }
-
-  async emailExists(_email: string): Promise<boolean> {
-    return false;
   }
 
   async create(data: Partial<Record<string, unknown>>): Promise<CollabRoomDocument> {
@@ -60,25 +45,11 @@ export class CollabRoomRepository extends BaseRepository<CollabRoomDocument> {
     brandId: string,
     filters: CollabRoomFilters,
   ): Promise<PaginatedResult<CollabRoomDocument>> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
     const query: FilterQuery<CollabRoomDocument> = { brandId };
     if (filters.status) query.status = filters.status;
-    return this.runPaginated(query, filters.page ?? 1, filters.limit ?? 20);
-  }
 
-  async findByCreatorId(
-    creatorId: string,
-    filters: CollabRoomFilters,
-  ): Promise<PaginatedResult<CollabRoomDocument>> {
-    const query: FilterQuery<CollabRoomDocument> = { creatorId };
-    if (filters.status) query.status = filters.status;
-    return this.runPaginated(query, filters.page ?? 1, filters.limit ?? 20);
-  }
-
-  private async runPaginated(
-    query: FilterQuery<CollabRoomDocument>,
-    page: number,
-    limit: number,
-  ): Promise<PaginatedResult<CollabRoomDocument>> {
     const [total, items] = await Promise.all([
       CollabRoomModel.countDocuments(query),
       CollabRoomModel.find(query)
@@ -88,17 +59,27 @@ export class CollabRoomRepository extends BaseRepository<CollabRoomDocument> {
         .exec(),
     ]);
 
-    const totalPages = Math.ceil(total / limit);
-    return {
-      items,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
-    };
+    return this.buildPaginatedResult(items, total, page, limit);
+  }
+
+  async findByCreatorId(
+    creatorId: string,
+    filters: CollabRoomFilters,
+  ): Promise<PaginatedResult<CollabRoomDocument>> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
+    const query: FilterQuery<CollabRoomDocument> = { creatorId };
+    if (filters.status) query.status = filters.status;
+
+    const [total, items] = await Promise.all([
+      CollabRoomModel.countDocuments(query),
+      CollabRoomModel.find(query)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
+    ]);
+
+    return this.buildPaginatedResult(items, total, page, limit);
   }
 }

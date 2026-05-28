@@ -1,60 +1,38 @@
-import type { Channel } from "amqplib";
+import type { ConsumeMessage } from "amqplib";
 import type { RabbitMQConnection } from "../config/RabbitMQConnection";
 import type { NotificationRepository } from "../infrastructure/repositories/NotificationRepository";
 import { BID_EXCHANGE_NAME } from "../config/config.constants";
 import { logger } from "../utils/logger";
 import { UserRole } from "../core/types";
+import { BaseWorker } from "./BaseWorker";
 
-const QUEUE_NAME = "creatorlane.bid.notifications";
-const PREFETCH = 20;
-
-export class BidNotificationWorker {
-  private channel: Channel | null = null;
-  private consumerTag: string | null = null;
+export class BidNotificationWorker extends BaseWorker {
+  protected readonly queueName = "creatorlane.bid.notifications";
+  protected readonly exchangeName = BID_EXCHANGE_NAME;
+  protected readonly routingKey = "bid.*";
+  protected readonly prefetch = 20;
 
   constructor(
     private readonly notificationRepository: NotificationRepository,
-    private readonly rabbitMQ: RabbitMQConnection,
-  ) {}
-
-  async start(): Promise<void> {
-    this.channel = await this.rabbitMQ.createChannel();
-    await this.channel.assertExchange(BID_EXCHANGE_NAME, "topic", { durable: true });
-    await this.channel.assertQueue(QUEUE_NAME, { durable: true });
-    await this.channel.bindQueue(QUEUE_NAME, BID_EXCHANGE_NAME, "bid.*");
-    this.channel.prefetch(PREFETCH);
-
-    const { consumerTag } = await this.channel.consume(
-      QUEUE_NAME,
-      async (msg) => {
-        if (!msg) return;
-        logger.debug("BidNotificationWorker: received message", { routingKey: msg.fields.routingKey });
-
-        try {
-          const payload = JSON.parse(msg.content.toString()) as Record<string, unknown>;
-          await this.handleEvent(msg.fields.routingKey, payload);
-          this.channel?.ack(msg);
-        } catch (err) {
-          logger.error("BidNotificationWorker: processing error", { err, routingKey: msg.fields.routingKey });
-          this.channel?.nack(msg, false, true);
-        }
-      },
-      { noAck: false },
-    );
-
-    this.consumerTag = consumerTag;
-    logger.info("BidNotificationWorker started");
+    rabbitMQ: RabbitMQConnection,
+  ) {
+    super(rabbitMQ);
   }
 
-  async stop(): Promise<void> {
-    if (this.channel && this.consumerTag) {
-      await this.channel.cancel(this.consumerTag);
+  protected async handleMessage(msg: ConsumeMessage): Promise<void> {
+    const channel = this.channel;
+    if (!channel) return;
+
+    logger.debug("BidNotificationWorker: received message", { routingKey: msg.fields.routingKey });
+
+    try {
+      const payload = JSON.parse(msg.content.toString()) as Record<string, unknown>;
+      await this.handleEvent(msg.fields.routingKey, payload);
+      channel.ack(msg);
+    } catch (err) {
+      logger.error("BidNotificationWorker: processing error", { err, routingKey: msg.fields.routingKey });
+      channel.nack(msg, false, true);
     }
-    if (this.channel) {
-      await this.channel.close();
-      this.channel = null;
-    }
-    logger.info("BidNotificationWorker stopped");
   }
 
   private async handleEvent(routingKey: string, payload: Record<string, unknown>): Promise<void> {

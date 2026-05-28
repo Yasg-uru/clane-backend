@@ -8,12 +8,7 @@ import {
   createCampaignSchema,
   updateCampaignSchema,
 } from "./campaign.validator";
-
-const toParamString = (val: string | string[] | undefined): string | undefined => {
-  if (typeof val === "string") return val;
-  if (Array.isArray(val)) return val[0];
-  return undefined;
-};
+import { toParam } from "../../utils/requestParam";
 
 export class CampaignController {
   constructor(private readonly campaignService: CampaignService) {}
@@ -36,7 +31,7 @@ export class CampaignController {
 
   getCampaignDetail = AsyncHandler.wrap(async (req, res) => {
     if (!req.user) throw new AuthError("Unauthorized");
-    const campaignId = toParamString(req.params["campaignId"]);
+    const campaignId = toParam(req.params["campaignId"]);
     if (!campaignId) throw new AuthError("Unauthorized");
     const campaign = await this.campaignService.getCampaignDetail(req.user.userId, campaignId);
     res.status(200).json(new ApiResponse("Campaign retrieved", { campaign }));
@@ -44,7 +39,7 @@ export class CampaignController {
 
   updateDraft = AsyncHandler.wrap(async (req, res) => {
     if (!req.user) throw new AuthError("Unauthorized");
-    const campaignId = toParamString(req.params["campaignId"]);
+    const campaignId = toParam(req.params["campaignId"]);
     if (!campaignId) throw new AuthError("Unauthorized");
     const data = updateCampaignSchema.parse(req.body);
     const campaign = await this.campaignService.updateDraft(req.user.userId, campaignId, data);
@@ -53,7 +48,7 @@ export class CampaignController {
 
   publishCampaign = AsyncHandler.wrap(async (req, res) => {
     if (!req.user) throw new AuthError("Unauthorized");
-    const campaignId = toParamString(req.params["campaignId"]);
+    const campaignId = toParam(req.params["campaignId"]);
     if (!campaignId) throw new AuthError("Unauthorized");
     const campaign = await this.campaignService.publishCampaign(req.user.userId, campaignId);
     res.status(200).json(new ApiResponse("Campaign published", { campaign }));
@@ -61,7 +56,7 @@ export class CampaignController {
 
   unpublishCampaign = AsyncHandler.wrap(async (req, res) => {
     if (!req.user) throw new AuthError("Unauthorized");
-    const campaignId = toParamString(req.params["campaignId"]);
+    const campaignId = toParam(req.params["campaignId"]);
     if (!campaignId) throw new AuthError("Unauthorized");
     const campaign = await this.campaignService.unpublishCampaign(req.user.userId, campaignId);
     res.status(200).json(new ApiResponse("Campaign unpublished", { campaign }));
@@ -69,7 +64,7 @@ export class CampaignController {
 
   closeCampaign = AsyncHandler.wrap(async (req, res) => {
     if (!req.user) throw new AuthError("Unauthorized");
-    const campaignId = toParamString(req.params["campaignId"]);
+    const campaignId = toParam(req.params["campaignId"]);
     if (!campaignId) throw new AuthError("Unauthorized");
     const campaign = await this.campaignService.closeCampaign(req.user.userId, campaignId);
     res.status(200).json(new ApiResponse("Campaign closed", { campaign }));
@@ -92,7 +87,7 @@ export class CampaignController {
 
   getCampaignDetailForCreator = AsyncHandler.wrap(async (req, res) => {
     if (!req.user) throw new AuthError("Unauthorized");
-    const slug = toParamString(req.params["slug"]);
+    const slug = toParam(req.params["slug"]);
     if (!slug) throw new AuthError("Unauthorized");
     const result = await this.campaignService.getCampaignDetailForCreator(req.user.userId, slug);
     res.status(200).json(new ApiResponse("Campaign retrieved", { campaign: result }));
@@ -101,7 +96,7 @@ export class CampaignController {
   // ─── Public handler ────────────────────────────────────────────────────────
 
   getPublicCampaignPreview = AsyncHandler.wrap(async (req, res) => {
-    const slug = toParamString(req.params["slug"]);
+    const slug = toParam(req.params["slug"]);
     if (!slug) throw new AuthError("Unauthorized");
     const preview = await this.campaignService.getPublicCampaignPreview(slug);
     res.status(200).json(new ApiResponse("Campaign preview retrieved", { campaign: preview }));

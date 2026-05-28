@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { NotificationModel, type NotificationDocument } from "../../models/Notification.model";
-import type { PaginatedResult } from "../../core/types";
-import type { UserRole } from "../../core/types";
+import type { PaginatedResult, UserRole } from "../../core/types";
+import { BaseRepository } from "./BaseRepository";
 
 export interface CreateNotificationInput {
   recipientId: string;
@@ -12,7 +12,29 @@ export interface CreateNotificationInput {
   meta?: Record<string, unknown>;
 }
 
-export class NotificationRepository {
+export class NotificationRepository extends BaseRepository<NotificationDocument> {
+  async findById(id: string): Promise<NotificationDocument | null> {
+    return NotificationModel.findById(id).exec();
+  }
+
+  async create(data: Partial<Record<string, unknown>>): Promise<NotificationDocument> {
+    const [notification] = await NotificationModel.create([data]);
+    if (!notification) throw new Error("Failed to create notification");
+    return notification;
+  }
+
+  async updateById(
+    id: string,
+    data: Partial<Record<string, unknown>>,
+  ): Promise<NotificationDocument | null> {
+    return NotificationModel.findByIdAndUpdate(id, data, { new: true }).exec();
+  }
+
+  async deleteById(id: string): Promise<boolean> {
+    const result = await NotificationModel.findByIdAndDelete(id).exec();
+    return result !== null;
+  }
+
   async createNotification(data: CreateNotificationInput): Promise<NotificationDocument> {
     const [notification] = await NotificationModel.create([
       {
@@ -46,18 +68,7 @@ export class NotificationRepository {
         .exec(),
     ]);
 
-    const totalPages = Math.ceil(total / limit);
-    return {
-      items,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
-    };
+    return this.buildPaginatedResult(items, total, page, limit);
   }
 
   async markAsRead(notificationId: string, recipientId: string): Promise<void> {

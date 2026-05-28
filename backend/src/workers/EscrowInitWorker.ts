@@ -1,56 +1,26 @@
-import type { Channel } from "amqplib";
+import type { ConsumeMessage } from "amqplib";
 import type { RabbitMQConnection } from "../config/RabbitMQConnection";
 import { BID_EXCHANGE_NAME } from "../config/config.constants";
 import type { EscrowService } from "../modules/escrow/EscrowService";
 import { ConflictError } from "../core/errors/ConflictError";
 import { ServiceUnavailableError } from "../core/errors/ServiceUnavailableError";
 import { logger } from "../utils/logger";
+import { BaseWorker } from "./BaseWorker";
 
-const QUEUE_NAME = "creatorlane.bid.escrow";
-const ROUTING_KEY = "bid.accepted";
-const PREFETCH = 5;
-
-export class EscrowInitWorker {
-  private channel: Channel | null = null;
-  private consumerTag: string | null = null;
+export class EscrowInitWorker extends BaseWorker {
+  protected readonly queueName = "creatorlane.bid.escrow";
+  protected readonly exchangeName = BID_EXCHANGE_NAME;
+  protected readonly routingKey = "bid.accepted";
+  protected readonly prefetch = 5;
 
   constructor(
-    private readonly rabbitMQ: RabbitMQConnection,
+    rabbitMQ: RabbitMQConnection,
     private readonly escrowService: EscrowService,
-  ) {}
-
-  async start(): Promise<void> {
-    this.channel = await this.rabbitMQ.createChannel();
-    await this.channel.assertExchange(BID_EXCHANGE_NAME, "topic", { durable: true });
-    await this.channel.assertQueue(QUEUE_NAME, { durable: true });
-    await this.channel.bindQueue(QUEUE_NAME, BID_EXCHANGE_NAME, ROUTING_KEY);
-    this.channel.prefetch(PREFETCH);
-
-    const { consumerTag } = await this.channel.consume(
-      QUEUE_NAME,
-      (msg) => {
-        if (!msg) return;
-        void this.handleMessage(msg);
-      },
-      { noAck: false },
-    );
-
-    this.consumerTag = consumerTag;
-    logger.info("EscrowInitWorker started");
+  ) {
+    super(rabbitMQ);
   }
 
-  async stop(): Promise<void> {
-    if (this.channel && this.consumerTag) {
-      await this.channel.cancel(this.consumerTag);
-    }
-    if (this.channel) {
-      await this.channel.close();
-      this.channel = null;
-    }
-    logger.info("EscrowInitWorker stopped");
-  }
-
-  private async handleMessage(msg: import("amqplib").ConsumeMessage): Promise<void> {
+  protected async handleMessage(msg: ConsumeMessage): Promise<void> {
     const channel = this.channel;
     if (!channel) return;
 

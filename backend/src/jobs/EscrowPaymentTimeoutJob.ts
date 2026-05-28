@@ -2,34 +2,19 @@ import type { EscrowRepository } from "../infrastructure/repositories/EscrowRepo
 import type { EscrowService } from "../modules/escrow/EscrowService";
 import { PAYMENT_TIMEOUT_JOB_INTERVAL_MS } from "../modules/escrow/escrow.constants";
 import { logger } from "../utils/logger";
+import { BaseJob } from "./BaseJob";
 
-export class EscrowPaymentTimeoutJob {
-  private timer: NodeJS.Timeout | null = null;
+export class EscrowPaymentTimeoutJob extends BaseJob {
+  protected readonly intervalMs = PAYMENT_TIMEOUT_JOB_INTERVAL_MS;
 
   constructor(
     private readonly escrowRepository: EscrowRepository,
     private readonly escrowService: EscrowService,
-  ) {}
-
-  start(): void {
-    this.timer = setInterval(() => {
-      this.run().catch((err: unknown) => {
-        logger.error("EscrowPaymentTimeoutJob: tick failed", { err });
-      });
-    }, PAYMENT_TIMEOUT_JOB_INTERVAL_MS);
-
-    logger.info("EscrowPaymentTimeoutJob started", { intervalMs: PAYMENT_TIMEOUT_JOB_INTERVAL_MS });
+  ) {
+    super();
   }
 
-  stop(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-    logger.info("EscrowPaymentTimeoutJob stopped");
-  }
-
-  private async run(): Promise<void> {
+  protected async run(): Promise<void> {
     const expired = await this.escrowRepository.findPendingPaymentExpired();
     if (expired.length === 0) return;
 

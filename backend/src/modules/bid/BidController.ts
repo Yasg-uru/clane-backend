@@ -11,12 +11,7 @@ import {
   getCreatorBidsSchema,
   getNotificationsSchema,
 } from "./bid.validator";
-
-const toParam = (val: string | string[] | undefined): string | undefined => {
-  if (typeof val === "string") return val;
-  if (Array.isArray(val)) return val[0];
-  return undefined;
-};
+import { toParam } from "../../utils/requestParam";
 
 export class BidController {
   constructor(

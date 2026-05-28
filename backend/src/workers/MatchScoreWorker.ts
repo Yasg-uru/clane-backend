@@ -1,4 +1,4 @@
-import type { Channel } from "amqplib";
+import type { ConsumeMessage } from "amqplib";
 import type { RabbitMQConnection } from "../config/RabbitMQConnection";
 import type { CreatorCampaignMatchRepository } from "../infrastructure/repositories/CreatorCampaignMatchRepository";
 import type { CreatorRepository } from "../infrastructure/repositories/CreatorRepository";
@@ -6,67 +6,44 @@ import type { MatchScorer } from "../modules/campaign/scoring/MatchScorer";
 import { CAMPAIGN_EXCHANGE_NAME } from "../config/config.constants";
 import { logger } from "../utils/logger";
 import { CampaignDeliveryType } from "../models/Campaign.model";
+import { BaseWorker } from "./BaseWorker";
 
-const QUEUE_NAME = "creatorlane.match.compute";
-const ROUTING_KEY = "campaign.published";
-const PREFETCH = 10;
-
-export class MatchScoreWorker {
-  private channel: Channel | null = null;
-  private consumerTag: string | null = null;
+export class MatchScoreWorker extends BaseWorker {
+  protected readonly queueName = "creatorlane.match.compute";
+  protected readonly exchangeName = CAMPAIGN_EXCHANGE_NAME;
+  protected readonly routingKey = "campaign.published";
+  protected readonly prefetch = 10;
 
   constructor(
     private readonly creatorCampaignMatchRepository: CreatorCampaignMatchRepository,
     private readonly creatorRepository: CreatorRepository,
-    private readonly rabbitMQ: RabbitMQConnection,
+    rabbitMQ: RabbitMQConnection,
     private readonly matchScorer: MatchScorer,
-  ) {}
-
-  async start(): Promise<void> {
-    this.channel = await this.rabbitMQ.createChannel();
-    await this.channel.assertExchange(CAMPAIGN_EXCHANGE_NAME, "topic", { durable: true });
-    await this.channel.assertQueue(QUEUE_NAME, { durable: true });
-    await this.channel.bindQueue(QUEUE_NAME, CAMPAIGN_EXCHANGE_NAME, ROUTING_KEY);
-    this.channel.prefetch(PREFETCH);
-
-    const { consumerTag } = await this.channel.consume(
-      QUEUE_NAME,
-      async (msg) => {
-        if (!msg) return;
-        logger.debug("MatchScoreWorker: received message", { queue: QUEUE_NAME });
-
-        try {
-          const payload = JSON.parse(msg.content.toString()) as Record<string, unknown>;
-          const campaignId = payload["campaignId"];
-
-          if (typeof campaignId !== "string") {
-            this.channel?.nack(msg, false, false);
-            return;
-          }
-
-          await this.computeAndStoreMatchScores(campaignId, payload);
-          this.channel?.ack(msg);
-        } catch (err) {
-          logger.error("MatchScoreWorker: processing error", { err });
-          this.channel?.nack(msg, false, true);
-        }
-      },
-      { noAck: false },
-    );
-
-    this.consumerTag = consumerTag;
-    logger.info("MatchScoreWorker started");
+  ) {
+    super(rabbitMQ);
   }
 
-  async stop(): Promise<void> {
-    if (this.channel && this.consumerTag) {
-      await this.channel.cancel(this.consumerTag);
+  protected async handleMessage(msg: ConsumeMessage): Promise<void> {
+    const channel = this.channel;
+    if (!channel) return;
+
+    logger.debug("MatchScoreWorker: received message", { queue: this.queueName });
+
+    try {
+      const payload = JSON.parse(msg.content.toString()) as Record<string, unknown>;
+      const campaignId = payload["campaignId"];
+
+      if (typeof campaignId !== "string") {
+        channel.nack(msg, false, false);
+        return;
+      }
+
+      await this.computeAndStoreMatchScores(campaignId, payload);
+      channel.ack(msg);
+    } catch (err) {
+      logger.error("MatchScoreWorker: processing error", { err });
+      channel.nack(msg, false, true);
     }
-    if (this.channel) {
-      await this.channel.close();
-      this.channel = null;
-    }
-    logger.info("MatchScoreWorker stopped");
   }
 
   private async computeAndStoreMatchScores(
