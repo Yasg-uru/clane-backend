@@ -1,5 +1,5 @@
 import { Schema, model, type HydratedDocument, type Types } from "mongoose";
-import type { UserRole } from "../core/types";
+import { UserRole } from "../core/types";
 
 export interface INotification {
   recipientId: Types.ObjectId;
@@ -19,7 +19,7 @@ export type NotificationDocument = HydratedDocument<INotification>;
 const notificationSchema = new Schema<INotification>(
   {
     recipientId: { type: Schema.Types.ObjectId, required: true, index: true },
-    recipientRole: { type: String, enum: ["brand", "creator"], required: true },
+    recipientRole: { type: String, enum: Object.values(UserRole), required: true },
     type: { type: String, required: true },
     title: { type: String, required: true },
     body: { type: String, required: true },

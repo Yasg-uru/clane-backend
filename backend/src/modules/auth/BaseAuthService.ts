@@ -8,7 +8,8 @@ import { ForbiddenError } from "../../core/errors/ForbiddenError";
 import { NotFoundError } from "../../core/errors/NotFoundError";
 import { ConflictError } from "../../core/errors/ConflictError";
 import { RateLimitError } from "../../core/errors/RateLimitError";
-import type { AuthDocument, JwtPayload, SafeBrand, SafeCreator, SafeUser, UserRole } from "../../core/types";
+import { UserRole } from "../../core/types";
+import type { AuthDocument, JwtPayload, SafeBrand, SafeCreator, SafeUser } from "../../core/types";
 import type { AuthResult, RefreshResult } from "./auth.types";
 import type { LoginInput, ResendOtpInput, VerifyOtpInput } from "./auth.validator";
 
@@ -164,10 +165,10 @@ export abstract class BaseAuthService {
       updatedAt: toIso(user.updatedAt),
     };
 
-    if (user.role === "brand") {
+    if (user.role === UserRole.Brand) {
       const safeBrand: SafeBrand = {
         ...base,
-        role: "brand",
+        role: UserRole.Brand,
         brandName: user.brandName,
         brandType: user.brandType,
         instagramHandle: user.instagramHandle,
@@ -180,7 +181,7 @@ export abstract class BaseAuthService {
 
     const safeCreator: SafeCreator = {
       ...base,
-      role: "creator",
+      role: UserRole.Creator,
       instagramHandle: user.instagramHandle,
       instagramFollowers: user.instagramFollowers,
       niche: user.niche,

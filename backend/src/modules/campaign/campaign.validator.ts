@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MIN_DEADLINE_MS } from "./campaign.constants";
+import { CampaignPlatform, TargetGender, CampaignDeliveryType, CampaignStatus } from "../../models/Campaign.model";
 
 const trimmedString = (min: number, max: number, label: string) =>
   z.preprocess(
@@ -44,14 +45,14 @@ const creatorRequirementsSchema = z.object({
   youtube: youtubeRequirementsSchema,
   minAge: z.number().int().min(13).max(65).optional(),
   maxAge: z.number().int().min(13).max(65).optional(),
-  gender: z.enum(["male", "female", "any"]).optional(),
+  gender: z.nativeEnum(TargetGender).optional(),
   languages: z.array(z.string().min(1).max(50)).max(10).optional(),
 }).optional();
 
 export const createCampaignSchema = z
   .object({
     title: trimmedString(3, 100, "Title"),
-    platform: z.enum(["instagram", "youtube", "both"]),
+    platform: z.nativeEnum(CampaignPlatform),
     niche: z
       .array(z.string().min(1).max(30))
       .min(1, "At least one niche is required")
@@ -59,7 +60,7 @@ export const createCampaignSchema = z
     targetLocation: trimmedString(2, 100, "Target location"),
     targetAgeMin: z.number().int("Must be an integer").min(13).max(65),
     targetAgeMax: z.number().int("Must be an integer").min(13).max(65),
-    targetGender: z.enum(["male", "female", "any"]),
+    targetGender: z.nativeEnum(TargetGender),
     budgetAmount: z
       .number()
       .int("Budget must be an integer")
@@ -73,7 +74,7 @@ export const createCampaignSchema = z
       ),
     contentBrief: trimmedString(50, 2000, "Content brief"),
     revisionRounds: z.union([z.literal(1), z.literal(2)]),
-    deliveryType: z.enum(["onsite", "remote"]),
+    deliveryType: z.nativeEnum(CampaignDeliveryType),
     shootingLocation: shootingLocationSchema.optional(),
     creatorRequirements: creatorRequirementsSchema,
   })
@@ -82,7 +83,7 @@ export const createCampaignSchema = z
     { message: "targetAgeMax must be greater than or equal to targetAgeMin", path: ["targetAgeMax"] },
   )
   .refine(
-    (data) => data.deliveryType !== "onsite" || !!data.shootingLocation,
+    (data) => data.deliveryType !== CampaignDeliveryType.Onsite || !!data.shootingLocation,
     { message: "Shooting location is required for onsite campaigns", path: ["shootingLocation"] },
   );
 
@@ -99,7 +100,7 @@ export const updateCampaignSchema = createCampaignSchema
   )
   .refine(
     (data) => {
-      if (data.deliveryType === "onsite") {
+      if (data.deliveryType === CampaignDeliveryType.Onsite) {
         return !!data.shootingLocation;
       }
       return true;
@@ -109,7 +110,7 @@ export const updateCampaignSchema = createCampaignSchema
 
 export const browseFiltersSchema = z
   .object({
-    platform: z.enum(["instagram", "youtube", "both"]).optional(),
+    platform: z.nativeEnum(CampaignPlatform).optional(),
     niche: z
       .preprocess(
         (val) => (typeof val === "string" ? [val] : val),
@@ -117,7 +118,7 @@ export const browseFiltersSchema = z
       ),
     budgetMin: z.coerce.number().int().min(0).optional(),
     budgetMax: z.coerce.number().int().min(0).optional(),
-    deliveryType: z.enum(["onsite", "remote"]).optional(),
+    deliveryType: z.nativeEnum(CampaignDeliveryType).optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(50).default(20),
   })
@@ -132,7 +133,7 @@ export const browseFiltersSchema = z
   );
 
 export const brandListFiltersSchema = z.object({
-  status: z.enum(["draft", "active", "closed", "in_progress", "completed"]).optional(),
+  status: z.nativeEnum(CampaignStatus).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });

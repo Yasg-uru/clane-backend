@@ -1,5 +1,6 @@
 import type { MatchScoreResult } from "../../../core/types";
 import type { MatchScorerCampaign, MatchScorerCreator } from "./IScorer";
+import { CampaignDeliveryType } from "../../../models/Campaign.model";
 import type { NicheScorer } from "./NicheScorer";
 import type { PlatformScorer } from "./PlatformScorer";
 import type { FollowerScorer } from "./FollowerScorer";
@@ -30,7 +31,7 @@ export class MatchScorer {
   ) {}
 
   compute(campaign: MatchScorerCampaign, creator: MatchScorerCreator): MatchScoreResult {
-    const isOnsite = campaign.deliveryType === "onsite";
+    const isOnsite = campaign.deliveryType === CampaignDeliveryType.Onsite;
     const w = isOnsite ? WEIGHTS.onsite : WEIGHTS.remote;
 
     const nicheScore = this.nicheScorer.score(campaign, creator);

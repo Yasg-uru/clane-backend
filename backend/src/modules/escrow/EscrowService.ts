@@ -19,6 +19,11 @@ import { AuthError } from "../../core/errors/AuthError";
 import { env } from "../../config/env";
 import { ESCROW_EXCHANGE_NAME } from "../../config/config.constants";
 import { logger } from "../../utils/logger";
+import { UserRole } from "../../core/types";
+import { EscrowStatus } from "../../models/Escrow.model";
+import { BidStatus } from "../../models/Bid.model";
+import { CampaignStatus } from "../../models/Campaign.model";
+import { CollabRoomStatus } from "../../models/CollabRoom.model";
 import {
   PLATFORM_FEE_RATIO,
   PAISE_PER_RUPEE,
@@ -71,7 +76,7 @@ export class EscrowService {
 
     const bid = await this.bidRepository.findById(bidId);
     if (!bid) throw new NotFoundError("Bid not found", "BID_NOT_FOUND");
-    if (bid.status !== "accepted") {
+    if (bid.status !== BidStatus.Accepted) {
       throw new ValidationError("Bid is not in accepted state", "BID_NOT_ACCEPTED");
     }
 
@@ -113,7 +118,7 @@ export class EscrowService {
       razorpayPaymentId: null,
       razorpaySignature: null,
       razorpayRefundId: null,
-      status: "awaiting_payment",
+      status: EscrowStatus.AwaitingPayment,
       paymentInitiatedAt: now,
       paymentDeadline,
       collabDeadline,
@@ -122,7 +127,7 @@ export class EscrowService {
 
     await this.notificationRepository.createNotification({
       recipientId: bid.brandId.toString(),
-      recipientRole: "brand",
+      recipientRole: UserRole.Brand,
       type: "escrow.payment_required",
       title: "Complete your payment",
       body: `Your bid acceptance for ${bid.campaignTitleAtBid} requires payment of ₹${(totalChargedAmount / PAISE_PER_RUPEE).toLocaleString("en-IN")}. Complete payment to begin collaboration.`,
@@ -234,7 +239,7 @@ export class EscrowService {
     if (!escrow || escrow.brandId.toString() !== brandId) {
       throw new NotFoundError("Escrow not found", "ESCROW_NOT_FOUND");
     }
-    if (escrow.status !== "awaiting_payment") {
+    if (escrow.status !== EscrowStatus.AwaitingPayment) {
       throw new ValidationError(
         "Escrow cannot be cancelled in its current state",
         "ESCROW_NOT_CANCELLABLE",
@@ -242,7 +247,7 @@ export class EscrowService {
     }
 
     const updated = await this.escrowRepository.updateById(escrowId, {
-      status: "cancelled",
+      status: EscrowStatus.Cancelled,
       cancelledAt: new Date(),
     });
     if (!updated) throw new NotFoundError("Escrow not found", "ESCROW_NOT_FOUND");
@@ -267,10 +272,10 @@ export class EscrowService {
     if (!escrow || escrow.brandId.toString() !== brandId) {
       throw new NotFoundError("Escrow not found", "ESCROW_NOT_FOUND");
     }
-    if (escrow.status === "funded") {
+    if (escrow.status === EscrowStatus.Funded) {
       throw new ConflictError("Escrow is already funded", "ESCROW_ALREADY_FUNDED");
     }
-    if (escrow.status !== "awaiting_payment") {
+    if (escrow.status !== EscrowStatus.AwaitingPayment) {
       throw new ValidationError(
         "Escrow cannot generate a new payment link",
         "ESCROW_NOT_CANCELLABLE",
@@ -338,7 +343,7 @@ export class EscrowService {
 
     const escrow = await this.escrowRepository.findById(escrowId);
     if (!escrow) throw new NotFoundError("Escrow not found", "ESCROW_NOT_FOUND");
-    if (escrow.status !== "funded") {
+    if (escrow.status !== EscrowStatus.Funded) {
       throw new ValidationError("Escrow is not funded", "ESCROW_NOT_FUNDED");
     }
 
@@ -351,7 +356,7 @@ export class EscrowService {
       campaignId: escrow.campaignId,
       brandId: escrow.brandId,
       creatorId: escrow.creatorId,
-      status: "pending_chat",
+      status: CollabRoomStatus.PendingChat,
       maxRevisions,
       revisionCount: 0,
       collabDeadline: escrow.collabDeadline,
@@ -368,20 +373,20 @@ export class EscrowService {
 
     await this.escrowRepository.updateByIdWithSession(
       escrow._id.toString(),
-      { status: "cancelled", cancelledAt: now },
+      { status: EscrowStatus.Cancelled, cancelledAt: now },
       session,
     );
 
     const bid = await this.bidRepository.updateStatusWithSession(
       escrow.bidId.toString(),
-      "declined",
+      BidStatus.Declined,
       { declineReason: "payment_timeout", declinedAt: now, autoDeclined: true },
       session,
     );
 
     await this.campaignRepository.updateStatus(
       escrow.campaignId.toString(),
-      "active",
+      CampaignStatus.Active,
       undefined,
       session,
     );
@@ -395,7 +400,7 @@ export class EscrowService {
     await Promise.all([
       this.notificationRepository.createNotification({
         recipientId: escrow.brandId.toString(),
-        recipientRole: "brand",
+        recipientRole: UserRole.Brand,
         type: "escrow.cancelled",
         title: "Escrow cancelled",
         body: `Your escrow for ${campaignTitle} was cancelled due to payment timeout.`,
@@ -403,7 +408,7 @@ export class EscrowService {
       }),
       this.notificationRepository.createNotification({
         recipientId: escrow.creatorId.toString(),
-        recipientRole: "creator",
+        recipientRole: UserRole.Creator,
         type: "escrow.cancelled",
         title: "Bid no longer active",
         body: `The brand did not complete payment for ${campaignTitle}. Your bid is no longer active.`,
@@ -454,7 +459,7 @@ export class EscrowService {
       return;
     }
 
-    if (escrow.status === "funded") {
+    if (escrow.status === EscrowStatus.Funded) {
       logger.debug("EscrowService: payment.captured ignored, escrow already funded", {
         escrowId: escrow._id.toString(),
       });
@@ -499,13 +504,13 @@ export class EscrowService {
       }
 
       const fresh = await this.escrowRepository.findById(escrow._id.toString());
-      if (!fresh || fresh.status === "funded") {
+      if (!fresh || fresh.status === EscrowStatus.Funded) {
         return;
       }
 
       const now = new Date();
       await this.escrowRepository.updateById(escrow._id.toString(), {
-        status: "funded",
+        status: EscrowStatus.Funded,
         razorpayPaymentId: paymentId,
         razorpaySignature: null,
         fundedAt: now,
@@ -552,7 +557,7 @@ export class EscrowService {
 
     await this.notificationRepository.createNotification({
       recipientId: escrow.brandId.toString(),
-      recipientRole: "brand",
+      recipientRole: UserRole.Brand,
       type: "escrow.payment_failed",
       title: "Payment failed",
       body: `Your payment for ${campaignTitle} failed. Please retry before ${escrow.paymentDeadline.toLocaleString("en-IN")}.`,

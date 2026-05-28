@@ -306,6 +306,33 @@ export class AuthController { ... }
 - Never use non-null assertion (`!`) on data from DB queries or external input. Narrow with guards.
 - `noUncheckedIndexedAccess: true` means array indexing returns `T | undefined`. Check every indexed access.
 
+### Enums — Non-Negotiable
+
+**Never use hardcoded string literals for domain state values.** All status, role, and categorical values must be defined as TypeScript `enum` and referenced via the enum.
+
+| Where enums live | Examples |
+|---|---|
+| `src/models/<Feature>.model.ts` | `EscrowStatus`, `BidStatus`, `CampaignStatus`, `CampaignPlatform`, `TargetGender`, `CampaignDeliveryType`, `CollabRoomStatus` |
+| `src/core/types/index.ts` | `UserRole`, `AuthProvider` |
+
+Rules:
+- Mongoose `enum:` arrays must use `Object.values(EnumName)`, never a literal array of strings.
+- Mongoose `default:` values must use the enum member, never a string literal.
+- Zod validators must use `z.nativeEnum(EnumName)`, never `z.enum([...])` for domain enums.
+- All comparisons (`===`, `!==`) and assignments must use enum members (`BidStatus.Accepted`), never string literals (`"accepted"`).
+
+```ts
+// correct
+status: { type: String, enum: Object.values(BidStatus), default: BidStatus.Submitted }
+if (bid.status === BidStatus.Accepted) { ... }
+z.nativeEnum(CampaignStatus).optional()
+
+// wrong — hardcoded strings
+status: { type: String, enum: ["submitted", "shortlisted"], default: "submitted" }
+if (bid.status === "accepted") { ... }
+z.enum(["draft", "active", "closed"])
+```
+
 ---
 
 ## Error Handling Rules

@@ -5,6 +5,7 @@ import { AsyncHandler } from "../../utils/asyncHandler";
 import { logger } from "../../utils/logger";
 import type { EscrowService } from "./EscrowService";
 import { escrowListQuerySchema } from "./escrow.validator";
+import { UserRole } from "../../core/types";
 
 const toParam = (val: string | string[] | undefined): string | undefined => {
   if (typeof val === "string") return val;
@@ -22,7 +23,7 @@ export class EscrowController {
     const escrowId = toParam(req.params["escrowId"]);
     if (!escrowId) throw new AuthError("Unauthorized");
     const escrow =
-      req.user.role === "brand"
+      req.user.role === UserRole.Brand
         ? await this.escrowService.getEscrowForBrand(req.user.userId, escrowId)
         : await this.escrowService.getEscrowForCreator(req.user.userId, escrowId);
     res.status(200).json(new ApiResponse("Escrow retrieved", { escrow }));
@@ -32,7 +33,7 @@ export class EscrowController {
     if (!req.user) throw new AuthError("Unauthorized");
     const { page, limit } = escrowListQuerySchema.parse(req.query);
     const result =
-      req.user.role === "brand"
+      req.user.role === UserRole.Brand
         ? await this.escrowService.getBrandEscrows(req.user.userId, page, limit)
         : await this.escrowService.getCreatorEscrows(req.user.userId, page, limit);
     res.status(200).json(new ApiResponse("Escrows retrieved", result));

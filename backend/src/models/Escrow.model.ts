@@ -1,12 +1,13 @@
 import { Schema, model, type HydratedDocument, type Types } from "mongoose";
 
-export type EscrowStatus =
-  | "awaiting_payment"
-  | "funded"
-  | "released"
-  | "refunded"
-  | "cancelled"
-  | "disputed";
+export enum EscrowStatus {
+  AwaitingPayment = "awaiting_payment",
+  Funded = "funded",
+  Released = "released",
+  Refunded = "refunded",
+  Cancelled = "cancelled",
+  Disputed = "disputed",
+}
 
 export interface WebhookEvent {
   event: string;
@@ -78,8 +79,8 @@ const escrowSchema = new Schema<IEscrow>(
 
     status: {
       type: String,
-      enum: ["awaiting_payment", "funded", "released", "refunded", "cancelled", "disputed"],
-      default: "awaiting_payment",
+      enum: Object.values(EscrowStatus),
+      default: EscrowStatus.AwaitingPayment,
       index: true,
     },
 

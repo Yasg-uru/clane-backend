@@ -3,6 +3,7 @@ import type { RabbitMQConnection } from "../config/RabbitMQConnection";
 import type { NotificationRepository } from "../infrastructure/repositories/NotificationRepository";
 import { BID_EXCHANGE_NAME } from "../config/config.constants";
 import { logger } from "../utils/logger";
+import { UserRole } from "../core/types";
 
 const QUEUE_NAME = "creatorlane.bid.notifications";
 const PREFETCH = 20;
@@ -90,7 +91,7 @@ export class BidNotificationWorker {
 
     await this.notificationRepository.createNotification({
       recipientId: brandId,
-      recipientRole: "brand",
+      recipientRole: UserRole.Brand,
       type: "bid.submitted",
       title: "New bid received",
       body: `A creator submitted a bid of ₹${proposedAmount.toLocaleString("en-IN")} on ${campaignTitle}`,
@@ -105,7 +106,7 @@ export class BidNotificationWorker {
 
     await this.notificationRepository.createNotification({
       recipientId: creatorId,
-      recipientRole: "creator",
+      recipientRole: UserRole.Creator,
       type: "bid.shortlisted",
       title: "Your bid has been shortlisted",
       body: "A brand has shortlisted your bid for further review",
@@ -120,7 +121,7 @@ export class BidNotificationWorker {
 
     await this.notificationRepository.createNotification({
       recipientId: creatorId,
-      recipientRole: "creator",
+      recipientRole: UserRole.Creator,
       type: "bid.declined",
       title: "Your bid was not selected",
       body: "The brand has reviewed your bid and decided not to proceed at this time",
@@ -135,7 +136,7 @@ export class BidNotificationWorker {
 
     await this.notificationRepository.createNotification({
       recipientId: brandId,
-      recipientRole: "brand",
+      recipientRole: UserRole.Brand,
       type: "bid.withdrawn",
       title: "A creator withdrew their bid",
       body: "A creator has withdrawn their bid from your campaign",
@@ -151,7 +152,7 @@ export class BidNotificationWorker {
 
     await this.notificationRepository.createNotification({
       recipientId: creatorId,
-      recipientRole: "creator",
+      recipientRole: UserRole.Creator,
       type: "bid.accepted",
       title: "Congratulations! Your bid was accepted",
       body: `Your bid of ₹${agreedAmount.toLocaleString("en-IN")} has been accepted. Get ready to collaborate!`,
@@ -179,7 +180,7 @@ export class BidNotificationWorker {
       .map((item) =>
         this.notificationRepository.createNotification({
           recipientId: item.creatorId,
-          recipientRole: "creator",
+          recipientRole: UserRole.Creator,
           type: "bid.declined",
           title: "Your bid was not selected",
           body: "The campaign has selected another creator. Thank you for your bid!",

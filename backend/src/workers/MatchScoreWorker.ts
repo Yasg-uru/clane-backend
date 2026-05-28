@@ -5,6 +5,7 @@ import type { CreatorRepository } from "../infrastructure/repositories/CreatorRe
 import type { MatchScorer } from "../modules/campaign/scoring/MatchScorer";
 import { CAMPAIGN_EXCHANGE_NAME } from "../config/config.constants";
 import { logger } from "../utils/logger";
+import { CampaignDeliveryType } from "../models/Campaign.model";
 
 const QUEUE_NAME = "creatorlane.match.compute";
 const ROUTING_KEY = "campaign.published";
@@ -83,7 +84,7 @@ export class MatchScoreWorker {
       niche: Array.isArray(campaignPayload["niche"]) ? (campaignPayload["niche"] as string[]) : [],
       targetLocation: String(campaignPayload["targetLocation"] ?? ""),
       budgetAmount: Number(campaignPayload["budgetAmount"] ?? 0),
-      deliveryType: String(campaignPayload["deliveryType"] ?? "remote"),
+      deliveryType: String(campaignPayload["deliveryType"] ?? CampaignDeliveryType.Remote),
       shootingLocation: rawShooting != null && typeof rawShooting === "object"
         ? (rawShooting as { geo: { coordinates: [number, number] }; radiusKm?: number })
         : null,

@@ -1,6 +1,12 @@
 import { Schema, model, type HydratedDocument, type Types } from "mongoose";
 
-export type BidStatus = "submitted" | "shortlisted" | "accepted" | "declined" | "withdrawn";
+export enum BidStatus {
+  Submitted = "submitted",
+  Shortlisted = "shortlisted",
+  Accepted = "accepted",
+  Declined = "declined",
+  Withdrawn = "withdrawn",
+}
 
 export interface IBid {
   campaignId: Types.ObjectId;
@@ -38,8 +44,8 @@ const bidSchema = new Schema<IBid>(
     proposedTimeline: { type: Number, required: true, min: 3, max: 60 },
     status: {
       type: String,
-      enum: ["submitted", "shortlisted", "accepted", "declined", "withdrawn"],
-      default: "submitted",
+      enum: Object.values(BidStatus),
+      default: BidStatus.Submitted,
       index: true,
     },
     declineReason: { type: String, default: null, maxlength: 500 },

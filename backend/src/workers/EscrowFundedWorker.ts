@@ -5,6 +5,7 @@ import type { EscrowService } from "../modules/escrow/EscrowService";
 import { ConflictError } from "../core/errors/ConflictError";
 import { ESCROW_EXCHANGE_NAME } from "../config/config.constants";
 import { logger } from "../utils/logger";
+import { UserRole } from "../core/types";
 
 const QUEUE_NAME = "creatorlane.escrow.funded";
 const ROUTING_KEY = "escrow.funded";
@@ -78,7 +79,7 @@ export class EscrowFundedWorker {
       await Promise.all([
         this.notificationRepository.createNotification({
           recipientId: creatorId,
-          recipientRole: "creator",
+          recipientRole: UserRole.Creator,
           type: "escrow.funded",
           title: "Funds secured",
           body: `₹${agreedAmountRupees.toLocaleString("en-IN")} has been held in escrow. Your collaboration room is ready.`,
@@ -86,7 +87,7 @@ export class EscrowFundedWorker {
         }),
         this.notificationRepository.createNotification({
           recipientId: brandId,
-          recipientRole: "brand",
+          recipientRole: UserRole.Brand,
           type: "collab.room_ready",
           title: "Collaboration room ready",
           body: "Your collab room is live. Message the creator to get started.",
@@ -94,7 +95,7 @@ export class EscrowFundedWorker {
         }),
         this.notificationRepository.createNotification({
           recipientId: creatorId,
-          recipientRole: "creator",
+          recipientRole: UserRole.Creator,
           type: "collab.room_ready",
           title: "Collaboration room ready",
           body: "Your collab room is live. The brand is waiting.",

@@ -1,14 +1,15 @@
 import { Schema, model, type HydratedDocument, type Types } from "mongoose";
 
-export type CollabRoomStatus =
-  | "pending_chat"
-  | "active"
-  | "content_submitted"
-  | "under_review"
-  | "revision_requested"
-  | "approved"
-  | "completed"
-  | "disputed";
+export enum CollabRoomStatus {
+  PendingChat = "pending_chat",
+  Active = "active",
+  ContentSubmitted = "content_submitted",
+  UnderReview = "under_review",
+  RevisionRequested = "revision_requested",
+  Approved = "approved",
+  Completed = "completed",
+  Disputed = "disputed",
+}
 
 export interface ICollabRoom {
   escrowId: Types.ObjectId;
@@ -40,17 +41,8 @@ const collabRoomSchema = new Schema<ICollabRoom>(
 
     status: {
       type: String,
-      enum: [
-        "pending_chat",
-        "active",
-        "content_submitted",
-        "under_review",
-        "revision_requested",
-        "approved",
-        "completed",
-        "disputed",
-      ],
-      default: "pending_chat",
+      enum: Object.values(CollabRoomStatus),
+      default: CollabRoomStatus.PendingChat,
       index: true,
     },
 

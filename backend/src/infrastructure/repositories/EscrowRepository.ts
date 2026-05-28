@@ -1,5 +1,5 @@
 import mongoose, { type ClientSession, type FilterQuery } from "mongoose";
-import { EscrowModel, type EscrowDocument, type EscrowStatus } from "../../models/Escrow.model";
+import { EscrowModel, EscrowStatus, type EscrowDocument } from "../../models/Escrow.model";
 import type { PaginatedResult } from "../../core/types";
 import { BaseRepository } from "./BaseRepository";
 
@@ -78,14 +78,14 @@ export class EscrowRepository extends BaseRepository<EscrowDocument> {
 
   async findPendingPaymentExpired(): Promise<EscrowDocument[]> {
     return EscrowModel.find({
-      status: "awaiting_payment",
+      status: EscrowStatus.AwaitingPayment,
       paymentDeadline: { $lt: new Date() },
     }).exec();
   }
 
   async findFundedCollabExpired(): Promise<EscrowDocument[]> {
     return EscrowModel.find({
-      status: "funded",
+      status: EscrowStatus.Funded,
       collabDeadline: { $lt: new Date() },
     }).exec();
   }

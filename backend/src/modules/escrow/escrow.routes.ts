@@ -1,6 +1,7 @@
 import express, { Router } from "express";
 import type { EscrowController } from "./EscrowController";
 import type { AuthMiddleware } from "../../infrastructure/middleware/AuthMiddleware";
+import { UserRole } from "../../core/types";
 
 export const createEscrowRouter = (
   controller: EscrowController,
@@ -12,14 +13,14 @@ export const createEscrowRouter = (
   router.post(
     "/:escrowId/cancel",
     authMiddleware.authenticate,
-    authMiddleware.requireRole("brand"),
+    authMiddleware.requireRole(UserRole.Brand),
     controller.cancelEscrow,
   );
 
   router.post(
     "/:escrowId/refresh-link",
     authMiddleware.authenticate,
-    authMiddleware.requireRole("brand"),
+    authMiddleware.requireRole(UserRole.Brand),
     controller.refreshPaymentLink,
   );
 

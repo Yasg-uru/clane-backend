@@ -1,8 +1,9 @@
 import { Schema, model, type HydratedDocument } from "mongoose";
-import type { AuthProvider, GeoPoint } from "../core/types";
+import { UserRole, AuthProvider } from "../core/types";
+import type { GeoPoint } from "../core/types";
 
 export interface Creator {
-  role: "creator";
+  role: UserRole.Creator;
   fullName: string;
   email: string;
   passwordHash: string;
@@ -40,8 +41,8 @@ const creatorSchema = new Schema<Creator>(
   {
     role: {
       type: String,
-      enum: ["creator"],
-      default: "creator",
+      enum: [UserRole.Creator],
+      default: UserRole.Creator,
       required: true,
       immutable: true,
     },
@@ -63,8 +64,8 @@ const creatorSchema = new Schema<Creator>(
     refreshToken: { type: String, default: null, select: false },
     authProvider: {
       type: String,
-      enum: ["email", "instagram", "google", "both"],
-      default: "email",
+      enum: Object.values(AuthProvider),
+      default: AuthProvider.Email,
       required: true,
     },
     instagramId: { type: String, sparse: true, unique: true },

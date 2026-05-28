@@ -24,6 +24,7 @@ import type {
   PublicCampaignPreview,
 } from "./campaign.types";
 import type { CreateCampaignInput, UpdateCampaignInput } from "./campaign.validator";
+import { CampaignStatus, CampaignDeliveryType } from "../../models/Campaign.model";
 
 export class CampaignService {
   constructor(
@@ -43,7 +44,7 @@ export class CampaignService {
     return this.campaignRepository.create({
       brandId,
       slug,
-      status: "draft",
+      status: CampaignStatus.Draft,
       publishedAt: null,
       closedAt: null,
       totalBids: 0,
@@ -61,7 +62,7 @@ export class CampaignService {
     if (!campaign || campaign.brandId.toString() !== brandId) {
       throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
     }
-    if (campaign.status !== "draft") {
+    if (campaign.status !== CampaignStatus.Draft) {
       throw new ValidationError("Campaign cannot be edited in its current state", "CAMPAIGN_NOT_EDITABLE");
     }
 
@@ -79,17 +80,17 @@ export class CampaignService {
     if (!campaign || campaign.brandId.toString() !== brandId) {
       throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
     }
-    if (campaign.status === "active") {
+    if (campaign.status === CampaignStatus.Active) {
       throw new ConflictError("Campaign is already active", "CAMPAIGN_ALREADY_ACTIVE");
     }
-    if (campaign.status !== "draft") {
+    if (campaign.status !== CampaignStatus.Draft) {
       throw new ValidationError("Only draft campaigns can be published", "CAMPAIGN_NOT_PUBLISHABLE");
     }
     if (!this.isReadyToPublish(campaign)) {
       throw new ValidationError("Campaign is missing required fields or deadline has passed", "CAMPAIGN_NOT_PUBLISHABLE");
     }
 
-    const updated = await this.campaignRepository.updateStatus(campaignId, "active", {
+    const updated = await this.campaignRepository.updateStatus(campaignId, CampaignStatus.Active, {
       publishedAt: new Date(),
     });
     if (!updated) throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
@@ -125,11 +126,11 @@ export class CampaignService {
     if (!campaign || campaign.brandId.toString() !== brandId) {
       throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
     }
-    if (campaign.status !== "active") {
+    if (campaign.status !== CampaignStatus.Active) {
       throw new ValidationError("Only active campaigns can be unpublished", "CAMPAIGN_NOT_EDITABLE");
     }
 
-    const updated = await this.campaignRepository.updateStatus(campaignId, "draft");
+    const updated = await this.campaignRepository.updateStatus(campaignId, CampaignStatus.Draft);
     if (!updated) throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
 
     this.eventPublisher.publish(
@@ -152,14 +153,14 @@ export class CampaignService {
     if (!campaign || campaign.brandId.toString() !== brandId) {
       throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
     }
-    if (campaign.status === "closed") {
+    if (campaign.status === CampaignStatus.Closed) {
       throw new ValidationError("Campaign is already closed", "CAMPAIGN_NOT_EDITABLE");
     }
     if (campaign.totalBids > 0) {
       throw new ConflictError("Cannot close a campaign with existing bids", "CAMPAIGN_HAS_BIDS");
     }
 
-    const updated = await this.campaignRepository.updateStatus(campaignId, "closed", {
+    const updated = await this.campaignRepository.updateStatus(campaignId, CampaignStatus.Closed, {
       closedAt: new Date(),
     });
     if (!updated) throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
@@ -262,7 +263,7 @@ export class CampaignService {
     }
 
     campaign = await this.campaignRepository.findBySlug(slug);
-    if (!campaign || campaign.status !== "active") {
+    if (!campaign || campaign.status !== CampaignStatus.Active) {
       throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
     }
 
@@ -290,7 +291,7 @@ export class CampaignService {
 
   async getPublicCampaignPreview(slug: string): Promise<PublicCampaignPreview> {
     const campaign = await this.campaignRepository.findBySlug(slug);
-    if (!campaign || campaign.status !== "active") {
+    if (!campaign || campaign.status !== CampaignStatus.Active) {
       throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
     }
 
@@ -327,7 +328,7 @@ export class CampaignService {
     const expired = await this.campaignRepository.findExpiredActiveCampaigns();
 
     for (const campaign of expired) {
-      await this.campaignRepository.updateStatus(campaign._id.toString(), "closed", {
+      await this.campaignRepository.updateStatus(campaign._id.toString(), CampaignStatus.Closed, {
         closedAt: new Date(),
       });
 
@@ -354,7 +355,7 @@ export class CampaignService {
 
   private isReadyToPublish(campaign: CampaignDocument): boolean {
     const shootingLocationValid =
-      campaign.deliveryType !== "onsite" || !!campaign.shootingLocation;
+      campaign.deliveryType !== CampaignDeliveryType.Onsite || !!campaign.shootingLocation;
 
     return (
       !!campaign.title &&

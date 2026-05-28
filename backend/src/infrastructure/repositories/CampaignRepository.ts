@@ -1,5 +1,5 @@
 import type { ClientSession, FilterQuery } from "mongoose";
-import { CampaignModel, type CampaignDocument, type CampaignStatus } from "../../models/Campaign.model";
+import { CampaignModel, CampaignStatus, type CampaignDocument } from "../../models/Campaign.model";
 import type { PaginatedResult } from "../../core/types";
 import { BaseRepository } from "./BaseRepository";
 
@@ -83,7 +83,7 @@ export class CampaignRepository extends BaseRepository<CampaignDocument> {
     page: number,
     limit: number,
   ): Promise<PaginatedResult<CampaignDocument>> {
-    const query: FilterQuery<CampaignDocument> = { status: "active" };
+    const query: FilterQuery<CampaignDocument> = { status: CampaignStatus.Active };
 
     if (filters.platform) query.platform = filters.platform;
     if (filters.niche && filters.niche.length > 0) {
@@ -130,7 +130,7 @@ export class CampaignRepository extends BaseRepository<CampaignDocument> {
 
   async findExpiredActiveCampaigns(): Promise<CampaignDocument[]> {
     return CampaignModel.find({
-      status: "active",
+      status: CampaignStatus.Active,
       deadline: { $lt: new Date() },
     }).exec();
   }

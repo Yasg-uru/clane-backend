@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_COMPARE_BIDS, MAX_LIMIT } from "./bid.constants";
+import { BidStatus } from "../../models/Bid.model";
 
 const objectIdSchema = z
   .string()
@@ -44,9 +45,7 @@ export const declineBidSchema = z.object({
 });
 
 export const getBidsSchema = z.object({
-  status: z
-    .enum(["submitted", "shortlisted", "accepted", "declined", "withdrawn"])
-    .optional(),
+  status: z.nativeEnum(BidStatus).optional(),
   sortBy: z
     .enum(["amount_asc", "amount_desc", "match_score_desc", "submitted_at_desc"])
     .default("submitted_at_desc"),
@@ -62,9 +61,7 @@ export const getBidsSchema = z.object({
 });
 
 export const getCreatorBidsSchema = z.object({
-  status: z
-    .enum(["submitted", "shortlisted", "accepted", "declined", "withdrawn"])
-    .optional(),
+  status: z.nativeEnum(BidStatus).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(20),
 });

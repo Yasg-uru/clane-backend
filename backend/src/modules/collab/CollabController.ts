@@ -4,6 +4,7 @@ import { ApiResponse } from "../../core/responses/ApiResponse";
 import { AsyncHandler } from "../../utils/asyncHandler";
 import type { CollabRoomRepository } from "../../infrastructure/repositories/CollabRoomRepository";
 import type { CollabRoomDocument } from "../../models/CollabRoom.model";
+import { UserRole } from "../../core/types";
 import { collabListQuerySchema } from "../escrow/escrow.validator";
 import type { CollabRoomView } from "../escrow/escrow.types";
 
@@ -20,7 +21,7 @@ export class CollabController {
     if (!req.user) throw new AuthError("Unauthorized");
     const filters = collabListQuerySchema.parse(req.query);
     const result =
-      req.user.role === "brand"
+      req.user.role === UserRole.Brand
         ? await this.collabRoomRepository.findByBrandId(req.user.userId, filters)
         : await this.collabRoomRepository.findByCreatorId(req.user.userId, filters);
 
@@ -41,7 +42,7 @@ export class CollabController {
     if (!room) throw new NotFoundError("Collab room not found", "COLLAB_ROOM_NOT_FOUND");
 
     const ownerId =
-      req.user.role === "brand" ? room.brandId.toString() : room.creatorId.toString();
+      req.user.role === UserRole.Brand ? room.brandId.toString() : room.creatorId.toString();
     if (ownerId !== req.user.userId) {
       throw new NotFoundError("Collab room not found", "COLLAB_ROOM_NOT_FOUND");
     }

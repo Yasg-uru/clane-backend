@@ -1,7 +1,7 @@
 import type { Request } from "express";
 import { AuthError } from "../../core/errors/AuthError";
 import type { ITokenService } from "../../core/interfaces/ITokenService";
-import type { UserRole } from "../../core/types";
+import { UserRole } from "../../core/types";
 import { ApiResponse } from "../../core/responses/ApiResponse";
 import { AsyncHandler } from "../../utils/asyncHandler";
 import {
@@ -79,7 +79,7 @@ export class AuthController {
   });
 
   private getService(role: UserRole): BaseAuthService {
-    return role === "brand" ? this.brandAuthService : this.creatorAuthService;
+    return role === UserRole.Brand ? this.brandAuthService : this.creatorAuthService;
   }
 
   private getRefreshTokenFromCookie(req: Request): string {

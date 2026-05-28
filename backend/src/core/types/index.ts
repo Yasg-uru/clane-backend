@@ -30,10 +30,17 @@ export interface PaginatedResult<T> {
   };
 }
 
-export const USER_ROLES = ["brand", "creator"] as const;
-export type UserRole = (typeof USER_ROLES)[number];
+export enum UserRole {
+  Brand = "brand",
+  Creator = "creator",
+}
 
-export type AuthProvider = "email" | "instagram" | "google" | "both";
+export enum AuthProvider {
+  Email = "email",
+  Instagram = "instagram",
+  Google = "google",
+  Both = "both",
+}
 
 export type SocialAuthStatus =
   | "AUTHENTICATED"
@@ -79,7 +86,7 @@ interface SafeUserBase {
 }
 
 export interface SafeBrand extends SafeUserBase {
-  role: "brand";
+  role: UserRole.Brand;
   brandName: string;
   brandType: string;
   instagramHandle?: string;
@@ -89,7 +96,7 @@ export interface SafeBrand extends SafeUserBase {
 }
 
 export interface SafeCreator extends SafeUserBase {
-  role: "creator";
+  role: UserRole.Creator;
   instagramHandle: string;
   instagramFollowers: number;
   niche: string[];

@@ -1,4 +1,5 @@
 import type { BidStatus } from "../../models/Bid.model";
+import type { CampaignStatus } from "../../models/Campaign.model";
 
 export interface BidCreatorProfile {
   id: string;
@@ -71,5 +72,5 @@ export interface AcceptBidResult {
     acceptedAt: Date | null;
   };
   declinedCount: number;
-  campaignStatus: "in_progress";
+  campaignStatus: CampaignStatus.InProgress;
 }

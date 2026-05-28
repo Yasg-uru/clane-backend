@@ -3,11 +3,30 @@ import type { GeoPoint } from "../core/types";
 
 export type { GeoPoint };
 
-export type CampaignStatus = "draft" | "active" | "closed" | "in_progress" | "completed";
-export type CampaignPlatform = "instagram" | "youtube" | "both";
-export type TargetGender = "male" | "female" | "any";
+export enum CampaignStatus {
+  Draft = "draft",
+  Active = "active",
+  Closed = "closed",
+  InProgress = "in_progress",
+  Completed = "completed",
+}
 
-export type CampaignDeliveryType = "onsite" | "remote";
+export enum CampaignPlatform {
+  Instagram = "instagram",
+  YouTube = "youtube",
+  Both = "both",
+}
+
+export enum TargetGender {
+  Male = "male",
+  Female = "female",
+  Any = "any",
+}
+
+export enum CampaignDeliveryType {
+  Onsite = "onsite",
+  Remote = "remote",
+}
 
 export interface ShootingLocation {
   geo: GeoPoint;
@@ -115,7 +134,7 @@ const creatorRequirementsSchema = new Schema<CreatorRequirements>(
     youtube: { type: youtubeRequirementsSchema },
     minAge: { type: Number, min: 13, max: 65 },
     maxAge: { type: Number, min: 13, max: 65 },
-    gender: { type: String, enum: ["male", "female", "any"] },
+    gender: { type: String, enum: Object.values(TargetGender) },
     languages: { type: [String] },
   },
   { _id: false },
@@ -128,23 +147,23 @@ const campaignSchema = new Schema<ICampaign>(
     brandId: { type: Schema.Types.ObjectId, ref: "Brand", required: true, index: true },
     title: { type: String, required: true, trim: true, minlength: 3, maxlength: 100 },
     slug: { type: String, required: true, unique: true, index: true, lowercase: true },
-    platform: { type: String, enum: ["instagram", "youtube", "both"], required: true, index: true },
+    platform: { type: String, enum: Object.values(CampaignPlatform), required: true, index: true },
     niche: { type: [String], required: true, index: true },
     targetLocation: { type: String, required: true, trim: true },
     targetAgeMin: { type: Number, required: true, min: 13, max: 65 },
     targetAgeMax: { type: Number, required: true, min: 13, max: 65 },
-    targetGender: { type: String, enum: ["male", "female", "any"], required: true },
+    targetGender: { type: String, enum: Object.values(TargetGender), required: true },
     budgetAmount: { type: Number, required: true, min: 500, max: 10_000_000 },
     deadline: { type: Date, required: true, index: true },
     contentBrief: { type: String, required: true, minlength: 50, maxlength: 2000 },
     revisionRounds: { type: Number, enum: [1, 2], required: true },
-    deliveryType: { type: String, enum: ["onsite", "remote"], required: true, index: true },
+    deliveryType: { type: String, enum: Object.values(CampaignDeliveryType), required: true, index: true },
     shootingLocation: { type: shootingLocationSchema },
     creatorRequirements: { type: creatorRequirementsSchema, default: () => ({}) },
     status: {
       type: String,
-      enum: ["draft", "active", "closed", "in_progress", "completed"],
-      default: "draft",
+      enum: Object.values(CampaignStatus),
+      default: CampaignStatus.Draft,
       index: true,
     },
     publishedAt: { type: Date, default: null },
@@ -159,7 +178,7 @@ campaignSchema.index({ status: 1, platform: 1, niche: 1, budgetAmount: 1 });
 campaignSchema.index({ "shootingLocation.geo": "2dsphere" }, { sparse: true });
 
 campaignSchema.pre("validate", function (next) {
-  if (this.deliveryType === "onsite" && !this.shootingLocation) {
+  if (this.deliveryType === CampaignDeliveryType.Onsite && !this.shootingLocation) {
     this.invalidate("shootingLocation", "Shooting location is required for onsite campaigns");
   }
   next();

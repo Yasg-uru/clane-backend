@@ -5,14 +5,15 @@ import type { IEmailService } from "../../core/interfaces/IEmailService";
 import type { IEventPublisher } from "../../core/interfaces/IEventPublisher";
 import type { IAuthStrategy } from "../../core/interfaces/IAuthStrategy";
 import { ConflictError } from "../../core/errors/ConflictError";
-import type { AuthDocument, UserRole } from "../../core/types";
+import { UserRole, AuthProvider } from "../../core/types";
+import type { AuthDocument } from "../../core/types";
 import type { BrandRepository } from "../../infrastructure/repositories/BrandRepository";
 import { BaseAuthService } from "./BaseAuthService";
 import { BCRYPT_SALT_ROUNDS } from "./auth.constants";
 import type { BrandRegisterInput } from "./auth.validator";
 
 export class BrandAuthService extends BaseAuthService {
-  protected readonly role: UserRole = "brand";
+  protected readonly role: UserRole = UserRole.Brand;
 
   constructor(
     private readonly brandRepository: BrandRepository,
@@ -40,7 +41,7 @@ export class BrandAuthService extends BaseAuthService {
 
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
     const brand = await this.brandRepository.create({
-      role: "brand",
+      role: UserRole.Brand,
       fullName: data.fullName,
       email: data.email,
       passwordHash,
@@ -49,13 +50,13 @@ export class BrandAuthService extends BaseAuthService {
       brandType: data.brandType,
       instagramHandle: data.instagramHandle,
       isEmailVerified: false,
-      authProvider: "email",
+      authProvider: AuthProvider.Email,
       isProfileComplete: true,
     });
 
     await this.sendRegistrationOtp(brand.email);
     this.eventPublisher.publish("user.registered", {
-      role: "brand",
+      role: UserRole.Brand,
       email: brand.email,
       name: brand.fullName,
       brandName: brand.brandName,

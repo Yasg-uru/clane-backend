@@ -4,7 +4,8 @@ import { env } from "../../config/env";
 import type { RedisClient } from "../../config/RedisClient";
 import type { ITokenService } from "../../core/interfaces/ITokenService";
 import { AuthError } from "../../core/errors/AuthError";
-import type { JwtPayload, UserRole } from "../../core/types";
+import { UserRole } from "../../core/types";
+import type { JwtPayload } from "../../core/types";
 import {
   ACCESS_TOKEN_OPTIONS,
   INSTAGRAM_PENDING_PURPOSE,
@@ -109,6 +110,6 @@ export class TokenService implements ITokenService {
   }
 
   private static isUserRole(role: unknown): role is UserRole {
-    return role === "brand" || role === "creator";
+    return role === UserRole.Brand || role === UserRole.Creator;
   }
 }

@@ -1,5 +1,5 @@
 import mongoose, { type ClientSession, type FilterQuery, type SortOrder } from "mongoose";
-import { BidModel, type BidDocument, type BidStatus } from "../../models/Bid.model";
+import { BidModel, BidStatus, type BidDocument } from "../../models/Bid.model";
 import type { PaginatedResult } from "../../core/types";
 import { BaseRepository } from "./BaseRepository";
 
@@ -112,7 +112,7 @@ export class BidRepository extends BaseRepository<BidDocument> {
     return BidModel.findOne({
       creatorId,
       campaignId,
-      status: { $in: ["submitted", "shortlisted"] },
+      status: { $in: [BidStatus.Submitted, BidStatus.Shortlisted] },
     }).exec();
   }
 
@@ -124,7 +124,7 @@ export class BidRepository extends BaseRepository<BidDocument> {
   }
 
   async findAcceptedBidForCampaign(campaignId: string): Promise<BidDocument | null> {
-    return BidModel.findOne({ campaignId, status: "accepted" }).exec();
+    return BidModel.findOne({ campaignId, status: BidStatus.Accepted }).exec();
   }
 
   async bulkDecline(
@@ -136,7 +136,7 @@ export class BidRepository extends BaseRepository<BidDocument> {
       {
         campaignId,
         _id: { $ne: excludeBidId },
-        status: { $in: ["submitted", "shortlisted"] },
+        status: { $in: [BidStatus.Submitted, BidStatus.Shortlisted] },
       },
       { _id: 1, creatorId: 1 },
       { session },
@@ -150,7 +150,7 @@ export class BidRepository extends BaseRepository<BidDocument> {
     await BidModel.updateMany(
       { _id: { $in: ids } },
       {
-        status: "declined",
+        status: BidStatus.Declined,
         autoDeclined: true,
         declinedAt: now,
       },

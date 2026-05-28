@@ -23,6 +23,8 @@ import {
 } from "./bid.constants";
 import type { BidWithCreator, BidWithCampaign, AcceptBidResult } from "./bid.types";
 import type { SubmitBidInput } from "./bid.validator";
+import { BidStatus } from "../../models/Bid.model";
+import { CampaignStatus } from "../../models/Campaign.model";
 
 export class BidService {
   constructor(
@@ -40,7 +42,7 @@ export class BidService {
 
   async submitBid(creatorId: string, data: SubmitBidInput): Promise<BidDocument> {
     const campaign = await this.campaignRepository.findById(data.campaignId);
-    if (!campaign || campaign.status !== "active") {
+    if (!campaign || campaign.status !== CampaignStatus.Active) {
       throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
     }
 
@@ -77,7 +79,7 @@ export class BidService {
       pitch: data.pitch,
       attachmentUrl: data.attachmentUrl ?? null,
       proposedTimeline: data.proposedTimeline,
-      status: "submitted",
+      status: BidStatus.Submitted,
       campaignBudgetAtBid: campaign.budgetAmount,
       campaignDeadlineAtBid: campaign.deadline,
       campaignTitleAtBid: campaign.title,
@@ -109,12 +111,12 @@ export class BidService {
       throw new NotFoundError("Bid not found", "BID_NOT_FOUND");
     }
 
-    if (bid.status !== "submitted" && bid.status !== "shortlisted") {
+    if (bid.status !== BidStatus.Submitted && bid.status !== BidStatus.Shortlisted) {
       throw new ValidationError("Bid cannot be withdrawn in its current state", "BID_NOT_ACTIONABLE");
     }
 
     const updated = await this.bidRepository.updateById(bidId, {
-      status: "withdrawn",
+      status: BidStatus.Withdrawn,
       withdrawReason: reason ?? null,
       withdrawnAt: new Date(),
     });
@@ -292,12 +294,12 @@ export class BidService {
 
     await this.assertBrandOwnsBid(brandId, bid.campaignId.toString());
 
-    if (bid.status !== "submitted") {
+    if (bid.status !== BidStatus.Submitted) {
       throw new ValidationError("Only submitted bids can be shortlisted", "BID_NOT_ACTIONABLE");
     }
 
     const updated = await this.bidRepository.updateById(bidId, {
-      status: "shortlisted",
+      status: BidStatus.Shortlisted,
       shortlistedAt: new Date(),
     });
     if (!updated) throw new NotFoundError("Bid not found", "BID_NOT_FOUND");
@@ -324,12 +326,12 @@ export class BidService {
 
     await this.assertBrandOwnsBid(brandId, bid.campaignId.toString());
 
-    if (bid.status !== "shortlisted") {
+    if (bid.status !== BidStatus.Shortlisted) {
       throw new ValidationError("Only shortlisted bids can be un-shortlisted", "BID_NOT_ACTIONABLE");
     }
 
     const updated = await this.bidRepository.updateById(bidId, {
-      status: "submitted",
+      status: BidStatus.Submitted,
       shortlistedAt: null,
     });
     if (!updated) throw new NotFoundError("Bid not found", "BID_NOT_FOUND");
@@ -345,12 +347,12 @@ export class BidService {
 
     await this.assertBrandOwnsBid(brandId, bid.campaignId.toString());
 
-    if (bid.status !== "submitted" && bid.status !== "shortlisted") {
+    if (bid.status !== BidStatus.Submitted && bid.status !== BidStatus.Shortlisted) {
       throw new ValidationError("Bid cannot be declined in its current state", "BID_NOT_ACTIONABLE");
     }
 
     const updated = await this.bidRepository.updateById(bidId, {
-      status: "declined",
+      status: BidStatus.Declined,
       declineReason: reason ?? null,
       declinedAt: new Date(),
       autoDeclined: false,
@@ -389,15 +391,15 @@ export class BidService {
       throw new NotFoundError("Bid not found", "BID_NOT_FOUND");
     }
 
-    if (campaign.status === "in_progress") {
+    if (campaign.status === CampaignStatus.InProgress) {
       throw new ConflictError("A bid has already been accepted for this campaign", "CAMPAIGN_ALREADY_IN_PROGRESS");
     }
 
-    if (campaign.status !== "active") {
+    if (campaign.status !== CampaignStatus.Active) {
       throw new ValidationError("Campaign is not active", "CAMPAIGN_NOT_ACTIVE");
     }
 
-    if (bid.status !== "submitted" && bid.status !== "shortlisted") {
+    if (bid.status !== BidStatus.Submitted && bid.status !== BidStatus.Shortlisted) {
       throw new ValidationError("Bid is not in an actionable state", "BID_NOT_ACTIONABLE");
     }
 
@@ -417,7 +419,7 @@ export class BidService {
 
       acceptedBid = await this.bidRepository.updateStatusWithSession(
         bidId,
-        "accepted",
+        BidStatus.Accepted,
         { acceptedAt: new Date() },
         session,
       );
@@ -431,7 +433,7 @@ export class BidService {
 
       await this.campaignRepository.updateStatus(
         bid.campaignId.toString(),
-        "in_progress",
+        CampaignStatus.InProgress,
         undefined,
         session,
       );
@@ -487,11 +489,11 @@ export class BidService {
         brandId,
         proposedAmount: bid.proposedAmount,
         proposedTimeline: bid.proposedTimeline,
-        status: "accepted",
+        status: BidStatus.Accepted,
         acceptedAt: acceptedBid.acceptedAt,
       },
       declinedCount: declinedBids.length,
-      campaignStatus: "in_progress",
+      campaignStatus: CampaignStatus.InProgress,
     };
   }
 
