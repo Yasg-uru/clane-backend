@@ -1,4 +1,3 @@
-import type { Request } from "express";
 import { AuthError } from "../../core/errors/AuthError";
 import type { ITokenService } from "../../core/interfaces/ITokenService";
 import { UserRole } from "../../core/types";
@@ -14,6 +13,7 @@ import {
 import type { BrandAuthService } from "./BrandAuthService";
 import type { CreatorAuthService } from "./CreatorAuthService";
 import type { BaseAuthService } from "./BaseAuthService";
+import { AuthUtils } from "./auth.utils";
 import {
   CLEAR_REFRESH_COOKIE_OPTIONS,
   REFRESH_COOKIE_OPTIONS,
@@ -58,7 +58,7 @@ export class AuthController {
   });
 
   refresh = AsyncHandler.wrap(async (req, res) => {
-    const rawToken = this.getRefreshTokenFromCookie(req);
+    const rawToken = AuthUtils.getRefreshTokenFromCookie(req);
     const decoded = this.tokenService.verifyRefreshToken(rawToken);
     const result = await this.getService(decoded.role).refreshToken(rawToken, decoded);
     res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS);
@@ -82,15 +82,4 @@ export class AuthController {
     return role === UserRole.Brand ? this.brandAuthService : this.creatorAuthService;
   }
 
-  private getRefreshTokenFromCookie(req: Request): string {
-    const cookies = req.cookies as unknown;
-    const cookieRecord =
-      typeof cookies === "object" && cookies !== null
-        ? (cookies as Record<string, unknown>)
-        : {};
-    const refreshToken = cookieRecord[REFRESH_TOKEN_COOKIE];
-
-    if (typeof refreshToken !== "string") throw new AuthError("Unauthorized");
-    return refreshToken;
-  }
 }

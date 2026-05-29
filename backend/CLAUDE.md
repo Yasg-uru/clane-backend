@@ -87,6 +87,17 @@ src/
       auth.routes.ts              Factory: createAuthRouter(controller, authMiddleware).
       auth.validator.ts           Zod schemas + inferred types. Unchanged.
       auth.types.ts               AuthResult, RefreshResult — module-local types.
+    auth/
+      AuthMapper.ts               AuthMapper — static DTO mapper: toSafeUser (AuthDocument → SafeUser).
+      auth.utils.ts               AuthUtils — pure static helpers: getRefreshTokenFromCookie.
+    campaign/
+      CampaignCacheManager.ts     Owns all campaign cache keys, TTLs, and typed get/set/invalidate ops.
+      campaign.utils.ts           CampaignUtils — pure static helpers: generateUniqueSlug, isReadyToPublish.
+    bid/
+      BidCacheManager.ts          Owns all bid and creator-bid cache keys, TTLs, and typed get/set/invalidate ops.
+    escrow/
+      EscrowMapper.ts             EscrowMapper — static DTO mappers: toBrandView, toCreatorView, toCollabRoomView.
+      escrow.utils.ts             EscrowUtils — pure static helpers: calculateAmounts.
 
   workers/
     BaseWorker.ts               Abstract — Template Method for RabbitMQ consumers. Subclasses declare queueName, exchangeName, routingKey (string or string[]), prefetch, and implement handleMessage(msg).
@@ -121,6 +132,14 @@ src/
 
 **"Is this business logic for a specific module?"**
 - Yes → `src/modules/<feature>/` — service class, controller class, routes factory, validator.
+
+**"Is this a caching abstraction for a specific module?"**
+- Yes → `src/modules/<feature>/<Feature>CacheManager.ts` — owns key construction, TTLs, and typed get/set/invalidate methods. Never put this logic in a service.
+
+**"Is this a pure function with no service state (no `this.repo`, no `this.service`, no `this.event`)?"**
+- Data transform (Document → DTO/View) → `src/modules/<feature>/<Feature>Mapper.ts` — static class.
+- Domain computation or string utility → `src/modules/<feature>/<feature>.utils.ts` — static class.
+- Services must never contain pure functions. If a method has no `this.*` dependencies and produces no side effects, it belongs in one of these files.
 
 **"Is this a type used only within one module?"**
 - Yes → `src/modules/<feature>/<feature>.types.ts`.
@@ -179,6 +198,7 @@ const user = await BrandModel.findOne({ email }).select("+passwordHash");
 - Subclasses (`BrandAuthService`, `CreatorAuthService`) implement five protected abstract methods: `findUser`, `findUserWithSecrets`, `findUserByIdWithRefreshToken`, `updateUserRefreshToken`, `updateEmailVerified`, `crossRoleEmailExists`.
 - Subclasses also implement `register(data)` as a public concrete method (not declared on the base).
 - Services receive all dependencies via constructor — never instantiate them with `new`.
+- Services that need caching receive a `<Feature>CacheManager`, **not** `ICacheService` directly. Key construction, TTLs, and cache I/O live in the manager.
 - Throw typed error classes (`AuthError`, `ConflictError`, etc.), never raw `Error`, never `AppError` directly.
 
 ```ts
@@ -187,6 +207,121 @@ throw new ConflictError("Email already registered");
 
 // wrong — numeric codes, loses semantic meaning
 throw new AppError(409, "Email already registered");
+```
+
+### Cache Managers (`src/modules/<feature>/<Feature>CacheManager.ts`)
+
+A **CacheManager** is required whenever a module reads from or writes to Redis for caching purposes. It is the only class in a module that calls `ICacheService` directly.
+
+**What belongs in a CacheManager:**
+- All private key-builder methods for the module's cache namespaces.
+- All cache TTL values (as file-level `const`, not exported — they are private implementation details).
+- Typed public `get*` / `set*` / `invalidate*` methods that accept business-meaningful parameters, not raw string keys.
+
+**What does NOT belong in a CacheManager:**
+- Business logic of any kind.
+- Repository calls or Mongoose queries.
+- Event publishing.
+
+**Rule:** Services must never call `ICacheService` directly and must never construct a cache key string. They call `this.<feature>Cache.get*(...)` and `this.<feature>Cache.invalidate*(...)` only.
+
+```ts
+// correct — CacheManager owns keys and TTLs; service calls typed methods
+const cached = await this.campaignCache.getBrowse(filters, page, limit);
+await this.campaignCache.setBrowse(filters, page, limit, result);
+await this.campaignCache.invalidateBrand(brandId);
+
+// wrong — service builds its own key and calls ICacheService directly
+const key = `cache:campaigns:browse:${hash}`;
+const cached = await this.cacheService.get<...>(key);
+await this.cacheService.set(key, result, BROWSE_CACHE_TTL);
+```
+
+**Structure:**
+
+```ts
+// correct — file-level const (not exported), typed public interface, private key builders
+const BROWSE_TTL_SECONDS = 120;
+
+export class CampaignCacheManager {
+  constructor(private readonly cache: ICacheService) {}
+
+  async getBrowse(filters: BrowseFilters, page: number, limit: number): Promise<... | null> {
+    return this.cache.get<...>(this.browseKey(filters, page, limit));
+  }
+
+  async setBrowse(filters: BrowseFilters, page: number, limit: number, value: ...): Promise<void> {
+    await this.cache.set(this.browseKey(filters, page, limit), value, BROWSE_TTL_SECONDS);
+  }
+
+  async invalidateBrowse(): Promise<void> {
+    await this.cache.delByPattern("cache:campaigns:browse:*");
+  }
+
+  private browseKey(filters: BrowseFilters, page: number, limit: number): string {
+    // hash construction lives here, never in the service
+  }
+}
+```
+
+**Wiring:** Instantiate with `new <Feature>CacheManager(cacheService)` in `server.ts` and inject into the service constructor.
+
+### Mappers (`src/modules/<feature>/<Feature>Mapper.ts`)
+
+A **Mapper** is a static class that converts Mongoose documents into view/DTO shapes. It has no constructor, no injected dependencies, and no side effects.
+
+**What belongs in a Mapper:**
+- Methods that take a `*Document` and return a typed view interface (`EscrowBrandView`, `CollabRoomView`, etc.).
+- Any field projection or `.toString()` coercion on ObjectId fields.
+
+**What does NOT belong in a Mapper:**
+- Repository calls. DB queries. Event publishing.
+- Business logic or conditionals beyond field selection.
+
+**Rule:** Services and controllers must never contain `toXxxView` / `toView` / `toDto` private methods. All document-to-view conversions go in the module's Mapper.
+
+```ts
+// correct — static, pure, no dependencies
+export class EscrowMapper {
+  static toBrandView(escrow: EscrowDocument): EscrowBrandView {
+    return { _id: escrow._id.toString(), status: escrow.status, ... };
+  }
+
+  static toCollabRoomView(room: CollabRoomDocument): CollabRoomView { ... }
+}
+
+// wrong — private toView buried inside the controller or service
+private toView(room: CollabRoomDocument): CollabRoomView { ... }
+```
+
+When two classes need the same view shape (e.g. both `EscrowService` and `CollabController` map `CollabRoomDocument → CollabRoomView`), they both import and call the **same Mapper method** — never duplicate the mapping logic.
+
+### Module Utilities (`src/modules/<feature>/<feature>.utils.ts`)
+
+A **Utils** class is a static class that holds pure helper functions specific to one module — computations, string transforms, and domain rules that have no service-state dependency.
+
+**Belongs here:**
+- Pure computations: `EscrowUtils.calculateAmounts(proposedAmountRupees)`.
+- Slug/string generation: `CampaignUtils.generateUniqueSlug(title)`.
+- Pure domain validation that only reads its argument: `CampaignUtils.isReadyToPublish(campaign)`.
+
+**Does NOT belong here:**
+- Anything that calls `this.*` (repository, event publisher, cache).
+- Anything async that touches infrastructure.
+
+**Rule:** If a method inside a service class has no `this.*` references, it is a pure function and must be extracted to `<feature>.utils.ts`.
+
+```ts
+// correct — no this.*, pure input→output
+export class EscrowUtils {
+  static calculateAmounts(proposedAmountRupees: number): EscrowAmounts {
+    const agreedAmount = proposedAmountRupees * PAISE_PER_RUPEE;
+    ...
+  }
+}
+
+// wrong — pure function hidden inside service class
+private calculateAmounts(proposedAmountRupees: number) { ... }
 ```
 
 ### Controllers (`src/modules/<feature>/AuthController.ts`)
@@ -302,7 +437,7 @@ export class MyJob extends BaseJob {
 
 - `class Server` manages HTTP lifecycle and graceful shutdown.
 - The module-level code below the class definition is the **composition root** — the only place where `new` is called for non-trivial classes.
-- Wiring order in the composition root: singletons → infrastructure services → repositories → strategies → domain services → middleware → controller → App → Server.
+- Wiring order in the composition root: singletons → infrastructure services → repositories → strategies → **cache managers** → domain services → middleware → controller → App → Server.
 
 ---
 
@@ -318,6 +453,9 @@ export class MyJob extends BaseJob {
 | Error classes | `PascalCase` + `Error` | `AuthError`, `ConflictError` |
 | Abstract base classes | `Base` + `PascalCase` | `BaseAuthService`, `BaseRepository` |
 | Singleton classes | `PascalCase` noun | `DatabaseConnection`, `RedisClient` |
+| Cache manager classes | `PascalCase` + `CacheManager` | `CampaignCacheManager`, `BidCacheManager` |
+| Mapper classes | `PascalCase` + `Mapper` | `EscrowMapper` |
+| Module utility classes | `PascalCase` + `Utils` | `CampaignUtils`, `EscrowUtils` |
 | Handler methods (bound) | `camelCase` arrow | `login`, `registerBrand` |
 | Private Redis key builders | `camelCase` + `Key`, private method | `otpKey(role, email)` |
 | Zod schemas | `camelCase` + `Schema` | `loginSchema`, `brandRegisterSchema` |
@@ -348,6 +486,7 @@ Constants must never be defined inside a class body or left as file-level `const
 
 **What does NOT belong in a constants file:**
 - Private implementation details that never leave one class (e.g. `OTP_TTL_SECONDS` only used inside `OtpService` methods — keep those as `private static readonly` or file-level `const` in the class's own file).
+- Cache TTL values — these are private implementation details of a `CacheManager` and belong as file-level `const` inside `<Feature>CacheManager.ts`, not in `<feature>.constants.ts`.
 
 ```ts
 // correct — auth.constants.ts exports shared auth values
@@ -377,8 +516,9 @@ export class AuthController { ... }
 
 | Where enums live | Examples |
 |---|---|
-| `src/models/<Feature>.model.ts` | `EscrowStatus`, `BidStatus`, `CampaignStatus`, `CampaignPlatform`, `TargetGender`, `CampaignDeliveryType`, `CollabRoomStatus` |
+| `src/models/<Feature>.model.ts` | `EscrowStatus`, `BidStatus`, `CampaignStatus`, `CampaignPlatform`, `TargetGender`, `CampaignDeliveryType`, `CollabRoomStatus`, `NotificationType` |
 | `src/core/types/index.ts` | `UserRole`, `AuthProvider` |
+| `src/config/config.constants.ts` | `AuthEvent`, `CampaignEvent`, `BidEvent`, `EscrowEvent` (RabbitMQ routing keys) |
 
 Rules:
 - Mongoose `enum:` arrays must use `Object.values(EnumName)`, never a literal array of strings.
@@ -503,17 +643,28 @@ Follow this order. Do not skip steps.
    - Private reusable field schemas. Export schemas + `z.infer<>` types.
 5. **Repository**: `src/infrastructure/repositories/<Feature>Repository.ts`
    - `extends BaseRepository<FeatureDocument>`. All Mongoose queries here.
-6. **Service class**: `src/modules/<feature>/<Feature>Service.ts`
-   - Constructor receives all dependencies via DI (repositories, token service, etc.).
+6. **Cache manager** (if the module caches data): `src/modules/<feature>/<Feature>CacheManager.ts`
+   - Accepts `ICacheService` via constructor. Owns all key builders, TTL consts, and typed get/set/invalidate methods.
+   - TTL values are file-level `const` inside this file — not exported, not in `<feature>.constants.ts`.
+7. **Mapper** (if the module returns view/DTO shapes): `src/modules/<feature>/<Feature>Mapper.ts`
+   - Static class. Methods take `*Document` arguments and return typed view interfaces.
+   - No constructor, no injected dependencies. Pure input → output.
+8. **Module utilities** (if the module has pure helper functions): `src/modules/<feature>/<feature>.utils.ts`
+   - Static class. Pure functions only — no `this.*` references, no async infrastructure calls.
+   - If a method inside a service has no `this.*` dependencies, it belongs here.
+9. **Service class**: `src/modules/<feature>/<Feature>Service.ts`
+   - Constructor receives all dependencies via DI (repositories, cache manager, etc.).
    - Public methods return typed results. Throw typed `AppError` subclasses.
-7. **Controller class**: `src/modules/<feature>/<Feature>Controller.ts`
-   - Handler methods as bound arrow functions. Parse → call service → respond.
-   - `asyncHandler` wraps each handler.
-8. **Routes factory**: `src/modules/<feature>/<feature>.routes.ts`
-   - `export const create<Feature>Router = (controller, ...) => Router`
-9. **Wire up in `src/app.ts`**: mount `create<Feature>Router(...)` in `initialiseRoutes()`.
-10. **Wire up in `src/server.ts`** (composition root): instantiate repository, service, controller; pass to `App`.
-11. **Run checks**: `npm run build && npm run lint`
+   - Never call `ICacheService` directly — delegate all caching to the CacheManager.
+   - Never contain pure functions (`toView`, `calculateX`, `generateSlug`) — those go in Mapper or Utils.
+10. **Controller class**: `src/modules/<feature>/<Feature>Controller.ts`
+    - Handler methods as bound arrow functions. Parse → call service → respond.
+    - `asyncHandler` wraps each handler. Never contain `toView` private methods — use the Mapper.
+11. **Routes factory**: `src/modules/<feature>/<feature>.routes.ts`
+    - `export const create<Feature>Router = (controller, ...) => Router`
+12. **Wire up in `src/app.ts`**: mount `create<Feature>Router(...)` in `initialiseRoutes()`.
+13. **Wire up in `src/server.ts`** (composition root): instantiate repository → cache manager → service → controller; pass to `App`.
+14. **Run checks**: `npm run build && npm run lint`
 
 ---
 
@@ -532,18 +683,42 @@ That is all.
 
 ## RabbitMQ Event Publishing
 
-Exchange: `creatorlane.events` (durable topic).  
-Use `this.eventPublisher.publish(routingKey, payload)` inside service classes.  
-`EventPublisher.publish()` is fire-and-forget (returns `boolean`). Do not `await` it.  
-Current events: `user.registered`.  
-New events follow the pattern `<noun>.<past-tense-verb>` — e.g. `campaign.created`, `bid.submitted`.  
-If RabbitMQ channel is unavailable, `publish()` logs a warning and returns `false` — it never throws.
+Use `this.eventPublisher.publish(routingKey, payload, exchange)` inside service classes.  
+`EventPublisher.publish()` is fire-and-forget (returns `boolean`). Do not `await` it.
+
+**Routing keys are enums — never inline strings.** All event routing keys are defined in `src/config/config.constants.ts`. Publishers (services) and consumers (workers) must both reference the enum member. A typo in either half otherwise silently breaks event delivery with no compile error.
+
+```ts
+// correct — enum member used in both publisher and consumer
+this.eventPublisher.publish(BidEvent.Accepted, { ... }, BID_EXCHANGE_NAME);
+protected readonly routingKey = BidEvent.Accepted; // in EscrowInitWorker
+
+// wrong — inline string, can silently drift
+this.eventPublisher.publish("bid.accepted", { ... }, BID_EXCHANGE_NAME);
+protected readonly routingKey = "bid.accepted";
+```
+
+Event enums in `src/config/config.constants.ts`:
+
+| Enum | Members |
+|---|---|
+| `AuthEvent` | `UserRegistered` |
+| `CampaignEvent` | `Published`, `Unpublished`, `Closed`, `Expired`, `Viewed` |
+| `BidEvent` | `Submitted`, `Shortlisted`, `Declined`, `Withdrawn`, `Accepted`, `BulkDeclined` |
+| `EscrowEvent` | `Initiated`, `Cancelled`, `Funded`, `RefundInitiated` |
+
+`BID_EVENT_BINDING = "bid.*"` is the topic wildcard used by `BidNotificationWorker` to fan in on all bid events.
+
+New events follow the pattern `<noun>.<past-tense-verb>`. Add the enum member to the relevant enum in `config.constants.ts` — never hardcode the string at the call site. If RabbitMQ channel is unavailable, `publish()` logs a warning and returns `false` — it never throws.
 
 ---
 
 ## Redis Key Naming
 
 Redis keys are always built by **private methods inside the class that owns them**. Never inline a string template in a call site.
+
+- For **infrastructure services** (`OtpService`, `TokenService`, `LockService`): private key builder methods live on the service class itself.
+- For **module caching**: private key builder methods live on the module's `CacheManager`. Services never see or construct a cache key string.
 
 ```ts
 // correct — private key builder inside OtpService
@@ -552,8 +727,15 @@ private otpKey(role: UserRole, email: string): string {
 }
 await this.redisClient.set(this.otpKey(role, email), otp, OTP_TTL_SECONDS);
 
+// correct — service delegates to CacheManager; never builds a key itself
+const cached = await this.campaignCache.getBrowse(filters, page, limit);
+
 // wrong — inline template, pattern can drift across call sites
 await this.redisClient.set(`otp:${role}:${email}`, otp, OTP_TTL_SECONDS);
+
+// wrong — service constructs its own cache key
+const key = `cache:campaigns:browse:${hash}`;
+const cached = await this.cacheService.get<...>(key);
 ```
 
 Global Redis key namespaces in use:
@@ -565,6 +747,13 @@ Global Redis key namespaces in use:
 | `otp:lock:*` | `OtpService` |
 | `otp:cooldown:*` | `OtpService` |
 | `blacklist:at:*` | `TokenService` |
+| `lock:bid:accept:*` | `BidService` |
+| `lock:webhook:escrow:*` | `EscrowService` |
+| `cache:campaigns:browse:*` | `CampaignCacheManager` |
+| `cache:campaigns:brand:*` | `CampaignCacheManager` |
+| `cache:campaign:detail:*` | `CampaignCacheManager` |
+| `cache:bids:campaign:*` | `BidCacheManager` |
+| `cache:bids:creator:*` | `BidCacheManager` |
 
 When adding a new namespace, add it to this table.
 

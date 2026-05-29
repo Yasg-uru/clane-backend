@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import type { CampaignDocument } from "../../models/Campaign.model";
 import type { PaginatedResult } from "../../core/types";
 import type { CampaignRepository, BrowseFilters, CampaignListFilters } from "../../infrastructure/repositories/CampaignRepository";
@@ -6,25 +5,19 @@ import type { CreatorCampaignMatchRepository } from "../../infrastructure/reposi
 import type { BrandRepository } from "../../infrastructure/repositories/BrandRepository";
 import type { CreatorRepository } from "../../infrastructure/repositories/CreatorRepository";
 import type { IEventPublisher } from "../../core/interfaces/IEventPublisher";
-import type { ICacheService } from "../../core/interfaces/ICacheService";
 import type { MatchScorer } from "./scoring/MatchScorer";
 import { NotFoundError } from "../../core/errors/NotFoundError";
 import { ValidationError } from "../../core/errors/ValidationError";
 import { ConflictError } from "../../core/errors/ConflictError";
 import { CAMPAIGN_EXCHANGE_NAME, CampaignEvent } from "../../config/config.constants";
-import {
-  BROWSE_CACHE_TTL,
-  BRAND_CAMPAIGN_CACHE_TTL,
-  DETAIL_CACHE_TTL,
-  SLUG_SUFFIX_BYTES,
-  MIN_DEADLINE_MS,
-} from "./campaign.constants";
+import { CampaignCacheManager } from "./CampaignCacheManager";
+import { CampaignUtils } from "./campaign.utils";
 import type {
   CampaignWithMatch,
   PublicCampaignPreview,
 } from "./campaign.types";
 import type { CreateCampaignInput, UpdateCampaignInput } from "./campaign.validator";
-import { CampaignStatus, CampaignDeliveryType } from "../../models/Campaign.model";
+import { CampaignStatus } from "../../models/Campaign.model";
 
 export class CampaignService {
   constructor(
@@ -33,14 +26,14 @@ export class CampaignService {
     private readonly brandRepository: BrandRepository,
     private readonly creatorRepository: CreatorRepository,
     private readonly eventPublisher: IEventPublisher,
-    private readonly cacheService: ICacheService,
+    private readonly campaignCache: CampaignCacheManager,
     private readonly matchScorer: MatchScorer,
   ) {}
 
   // ─── Brand-facing ──────────────────────────────────────────────────────────
 
   async createDraft(brandId: string, data: CreateCampaignInput): Promise<CampaignDocument> {
-    const slug = this.generateUniqueSlug(data.title);
+    const slug = CampaignUtils.generateUniqueSlug(data.title);
     return this.campaignRepository.create({
       brandId,
       slug,
@@ -69,8 +62,8 @@ export class CampaignService {
     const updated = await this.campaignRepository.updateById(campaignId, data);
     if (!updated) throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
 
-    await this.invalidateBrandCache(brandId);
-    await this.cacheService.del(this.detailCacheKey(campaign.slug));
+    await this.campaignCache.invalidateBrand(brandId);
+    await this.campaignCache.invalidateDetail(campaign.slug);
 
     return updated;
   }
@@ -86,7 +79,7 @@ export class CampaignService {
     if (campaign.status !== CampaignStatus.Draft) {
       throw new ValidationError("Only draft campaigns can be published", "CAMPAIGN_NOT_PUBLISHABLE");
     }
-    if (!this.isReadyToPublish(campaign)) {
+    if (!CampaignUtils.isReadyToPublish(campaign)) {
       throw new ValidationError("Campaign is missing required fields or deadline has passed", "CAMPAIGN_NOT_PUBLISHABLE");
     }
 
@@ -113,9 +106,9 @@ export class CampaignService {
     );
 
     await Promise.all([
-      this.invalidateBrandCache(brandId),
-      this.invalidateBrowseCache(),
-      this.cacheService.del(this.detailCacheKey(campaign.slug)),
+      this.campaignCache.invalidateBrand(brandId),
+      this.campaignCache.invalidateBrowse(),
+      this.campaignCache.invalidateDetail(campaign.slug),
     ]);
 
     return updated;
@@ -140,9 +133,9 @@ export class CampaignService {
     );
 
     await Promise.all([
-      this.invalidateBrandCache(brandId),
-      this.invalidateBrowseCache(),
-      this.cacheService.del(this.detailCacheKey(campaign.slug)),
+      this.campaignCache.invalidateBrand(brandId),
+      this.campaignCache.invalidateBrowse(),
+      this.campaignCache.invalidateDetail(campaign.slug),
     ]);
 
     return updated;
@@ -172,9 +165,9 @@ export class CampaignService {
     );
 
     await Promise.all([
-      this.invalidateBrandCache(brandId),
-      this.invalidateBrowseCache(),
-      this.cacheService.del(this.detailCacheKey(campaign.slug)),
+      this.campaignCache.invalidateBrand(brandId),
+      this.campaignCache.invalidateBrowse(),
+      this.campaignCache.invalidateDetail(campaign.slug),
     ]);
 
     return updated;
@@ -185,14 +178,11 @@ export class CampaignService {
     filters: CampaignListFilters,
   ): Promise<PaginatedResult<CampaignDocument>> {
     const page = filters.page ?? 1;
-    const _limit = filters.limit ?? 20;
-    const cacheKey = this.brandCacheKey(brandId, page);
-
-    const cached = await this.cacheService.get<PaginatedResult<CampaignDocument>>(cacheKey);
+    const cached = await this.campaignCache.getBrandList(brandId, page);
     if (cached) return cached;
 
     const result = await this.campaignRepository.findByBrandId(brandId, filters);
-    await this.cacheService.set(cacheKey, result, BRAND_CAMPAIGN_CACHE_TTL);
+    await this.campaignCache.setBrandList(brandId, page, result);
     return result;
   }
 
@@ -212,8 +202,7 @@ export class CampaignService {
     page: number,
     limit: number,
   ): Promise<PaginatedResult<CampaignWithMatch>> {
-    const cacheKey = this.browseCacheKey(filters, page, limit);
-    const cached = await this.cacheService.get<PaginatedResult<CampaignWithMatch>>(cacheKey);
+    const cached = await this.campaignCache.getBrowse(filters, page, limit);
     if (cached) return cached;
 
     const result = await this.campaignRepository.findActiveWithFilters(filters, page, limit);
@@ -233,7 +222,7 @@ export class CampaignService {
       pagination: result.pagination,
     };
 
-    await this.cacheService.set(cacheKey, enriched, BROWSE_CACHE_TTL);
+    await this.campaignCache.setBrowse(filters, page, limit, enriched);
     return enriched;
   }
 
@@ -241,28 +230,24 @@ export class CampaignService {
     creatorId: string,
     slug: string,
   ): Promise<CampaignWithMatch> {
-    const cacheKey = this.detailCacheKey(slug);
-    const cached = await this.cacheService.get<CampaignWithMatch>(cacheKey);
-
-    let campaign: CampaignDocument | null = null;
+    const cached = await this.campaignCache.getDetail(slug);
 
     if (cached) {
+      const cachedId = (cached._id as unknown as { toString(): string }).toString();
       const matchScore = (
-        await this.creatorCampaignMatchRepository.findMatchesForCreator(creatorId, [
-          (cached._id as unknown as { toString(): string }).toString(),
-        ])
-      ).get((cached._id as unknown as { toString(): string }).toString());
+        await this.creatorCampaignMatchRepository.findMatchesForCreator(creatorId, [cachedId])
+      ).get(cachedId);
 
       this.eventPublisher.publish(
         CampaignEvent.Viewed,
-        { campaignId: (cached._id as unknown as { toString(): string }).toString(), creatorId },
+        { campaignId: cachedId, creatorId },
         CAMPAIGN_EXCHANGE_NAME,
       );
 
       return { ...cached, matchScore };
     }
 
-    campaign = await this.campaignRepository.findBySlug(slug);
+    const campaign = await this.campaignRepository.findBySlug(slug);
     if (!campaign || campaign.status !== CampaignStatus.Active) {
       throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
     }
@@ -278,7 +263,7 @@ export class CampaignService {
       matchScore: matchScoreMap.get(campaignId),
     };
 
-    await this.cacheService.set(this.detailCacheKey(slug), campaign.toObject(), DETAIL_CACHE_TTL);
+    await this.campaignCache.setDetail(slug, campaign.toObject());
 
     this.eventPublisher.publish(
       CampaignEvent.Viewed,
@@ -343,73 +328,12 @@ export class CampaignService {
       );
 
       await Promise.all([
-        this.invalidateBrandCache(campaign.brandId.toString()),
-        this.cacheService.del(this.detailCacheKey(campaign.slug)),
+        this.campaignCache.invalidateBrand(campaign.brandId.toString()),
+        this.campaignCache.invalidateDetail(campaign.slug),
       ]);
     }
 
-    await this.invalidateBrowseCache();
+    await this.campaignCache.invalidateBrowse();
   }
 
-  // ─── Private helpers ───────────────────────────────────────────────────────
-
-  private isReadyToPublish(campaign: CampaignDocument): boolean {
-    const shootingLocationValid =
-      campaign.deliveryType !== CampaignDeliveryType.Onsite || !!campaign.shootingLocation;
-
-    return (
-      !!campaign.title &&
-      !!campaign.platform &&
-      campaign.niche.length > 0 &&
-      !!campaign.targetLocation &&
-      !!campaign.targetGender &&
-      !!campaign.contentBrief &&
-      !!campaign.deadline &&
-      campaign.deadline >= new Date(Date.now() + MIN_DEADLINE_MS) &&
-      campaign.budgetAmount > 0 &&
-      !!campaign.revisionRounds &&
-      !!campaign.deliveryType &&
-      shootingLocationValid
-    );
-  }
-
-  private generateUniqueSlug(title: string): string {
-    const base = title
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
-      .slice(0, 50);
-
-    // Timestamp (base36) + 4 random bytes (hex) = guaranteed unique + SEO-friendly
-    const timestamp = Date.now().toString(36);
-    const random = crypto.randomBytes(SLUG_SUFFIX_BYTES).toString("hex");
-    return `${base}-${timestamp}-${random}`;
-  }
-
-  private browseCacheKey(filters: BrowseFilters, page: number, limit: number): string {
-    const params = { ...filters, page, limit };
-    const hash = crypto
-      .createHash("sha256")
-      .update(JSON.stringify(params, Object.keys(params).sort()))
-      .digest("hex")
-      .slice(0, 16);
-    return `cache:campaigns:browse:${hash}`;
-  }
-
-  private brandCacheKey(brandId: string, page: number): string {
-    return `cache:campaigns:brand:${brandId}:${page}`;
-  }
-
-  private detailCacheKey(slug: string): string {
-    return `cache:campaign:detail:${slug}`;
-  }
-
-  private async invalidateBrandCache(brandId: string): Promise<void> {
-    await this.cacheService.delByPattern(`cache:campaigns:brand:${brandId}:*`);
-  }
-
-  private async invalidateBrowseCache(): Promise<void> {
-    await this.cacheService.delByPattern("cache:campaigns:browse:*");
-  }
 }

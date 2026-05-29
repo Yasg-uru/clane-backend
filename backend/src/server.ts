@@ -40,6 +40,7 @@ import { LocationScorer } from "./modules/campaign/scoring/LocationScorer";
 import { ProximityScorer } from "./modules/campaign/scoring/ProximityScorer";
 import { RequirementsScorer } from "./modules/campaign/scoring/RequirementsScorer";
 import { MatchScorer } from "./modules/campaign/scoring/MatchScorer";
+import { CampaignCacheManager } from "./modules/campaign/CampaignCacheManager";
 import { CampaignService } from "./modules/campaign/CampaignService";
 import { CampaignController } from "./modules/campaign/CampaignController";
 
@@ -47,6 +48,7 @@ import { CampaignController } from "./modules/campaign/CampaignController";
 import { LockService } from "./infrastructure/services/LockService";
 import { BidRepository } from "./infrastructure/repositories/BidRepository";
 import { NotificationRepository } from "./infrastructure/repositories/NotificationRepository";
+import { BidCacheManager } from "./modules/bid/BidCacheManager";
 import { BidService } from "./modules/bid/BidService";
 import { BidController } from "./modules/bid/BidController";
 
@@ -240,13 +242,15 @@ const matchScorer = new MatchScorer(
   new RequirementsScorer(),
 );
 
+const campaignCacheManager = new CampaignCacheManager(cacheService);
+
 const campaignService = new CampaignService(
   campaignRepository,
   creatorCampaignMatchRepository,
   brandRepository,
   creatorRepository,
   eventPublisher,
-  cacheService,
+  campaignCacheManager,
   matchScorer,
 );
 
@@ -264,6 +268,8 @@ const lockService = new LockService(redis);
 const bidRepository = new BidRepository();
 const notificationRepository = new NotificationRepository();
 
+const bidCacheManager = new BidCacheManager(cacheService);
+
 const bidService = new BidService(
   bidRepository,
   campaignRepository,
@@ -271,7 +277,7 @@ const bidService = new BidService(
   creatorRepository,
   creatorCampaignMatchRepository,
   eventPublisher,
-  cacheService,
+  bidCacheManager,
   lockService,
 );
 

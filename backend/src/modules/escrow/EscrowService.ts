@@ -26,7 +26,6 @@ import { BidStatus } from "../../models/Bid.model";
 import { CampaignStatus } from "../../models/Campaign.model";
 import { CollabRoomStatus } from "../../models/CollabRoom.model";
 import {
-  PLATFORM_FEE_RATIO,
   PAISE_PER_RUPEE,
   COLLAB_DEADLINE_BUFFER_DAYS,
   WEBHOOK_LOCK_TTL_SECONDS,
@@ -34,8 +33,9 @@ import {
 import type {
   EscrowBrandView,
   EscrowCreatorView,
-  CollabRoomView,
 } from "./escrow.types";
+import { EscrowMapper } from "./EscrowMapper";
+import { EscrowUtils } from "./escrow.utils";
 
 const MS_PER_HOUR = 60 * 60 * 1000;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
@@ -85,7 +85,7 @@ export class EscrowService {
     if (!campaign) throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
 
     const { agreedAmount, platformFeeAmount, totalChargedAmount, creatorReceivableAmount } =
-      this.calculateAmounts(bid.proposedAmount);
+      EscrowUtils.calculateAmounts(bid.proposedAmount);
 
     const now = new Date();
     const paymentDeadline = new Date(now.getTime() + env.PAYMENT_TIMEOUT_HOURS * MS_PER_HOUR);
@@ -198,7 +198,7 @@ export class EscrowService {
     if (!escrow || escrow.brandId.toString() !== brandId) {
       throw new NotFoundError("Escrow not found", "ESCROW_NOT_FOUND");
     }
-    return this.toBrandView(escrow);
+    return EscrowMapper.toBrandView(escrow);
   }
 
   async getEscrowForCreator(creatorId: string, escrowId: string): Promise<EscrowCreatorView> {
@@ -206,7 +206,7 @@ export class EscrowService {
     if (!escrow || escrow.creatorId.toString() !== creatorId) {
       throw new NotFoundError("Escrow not found", "ESCROW_NOT_FOUND");
     }
-    return this.toCreatorView(escrow);
+    return EscrowMapper.toCreatorView(escrow);
   }
 
   async getBrandEscrows(
@@ -216,7 +216,7 @@ export class EscrowService {
   ): Promise<PaginatedResult<EscrowBrandView>> {
     const result = await this.escrowRepository.findByBrandId(brandId, page, limit);
     return {
-      items: result.items.map((e) => this.toBrandView(e)),
+      items: result.items.map((e) => EscrowMapper.toBrandView(e)),
       pagination: result.pagination,
     };
   }
@@ -228,7 +228,7 @@ export class EscrowService {
   ): Promise<PaginatedResult<EscrowCreatorView>> {
     const result = await this.escrowRepository.findByCreatorId(creatorId, page, limit);
     return {
-      items: result.items.map((e) => this.toCreatorView(e)),
+      items: result.items.map((e) => EscrowMapper.toCreatorView(e)),
       pagination: result.pagination,
     };
   }
@@ -265,7 +265,7 @@ export class EscrowService {
       ESCROW_EXCHANGE_NAME,
     );
 
-    return this.toBrandView(updated);
+    return EscrowMapper.toBrandView(updated);
   }
 
   async refreshPaymentLink(brandId: string, escrowId: string): Promise<string> {
@@ -436,19 +436,6 @@ export class EscrowService {
 
   // ─── Private ──────────────────────────────────────────────────────────────
 
-  private calculateAmounts(proposedAmountRupees: number): {
-    agreedAmount: number;
-    platformFeeAmount: number;
-    totalChargedAmount: number;
-    creatorReceivableAmount: number;
-  } {
-    const agreedAmount = proposedAmountRupees * PAISE_PER_RUPEE;
-    const platformFeeAmount = Math.round(agreedAmount * PLATFORM_FEE_RATIO);
-    const totalChargedAmount = agreedAmount + platformFeeAmount;
-    const creatorReceivableAmount = agreedAmount;
-    return { agreedAmount, platformFeeAmount, totalChargedAmount, creatorReceivableAmount };
-  }
-
   private async onPaymentCaptured(payload: WebhookPayload): Promise<void> {
     const paymentEntity = payload.payload.payment.entity;
     const orderId = paymentEntity.order_id;
@@ -575,69 +562,4 @@ export class EscrowService {
     return `lock:webhook:escrow:${escrowId}`;
   }
 
-  private toBrandView(escrow: EscrowDocument): EscrowBrandView {
-    return {
-      _id: escrow._id.toString(),
-      bidId: escrow.bidId.toString(),
-      campaignId: escrow.campaignId.toString(),
-      brandId: escrow.brandId.toString(),
-      creatorId: escrow.creatorId.toString(),
-      agreedAmount: escrow.agreedAmount,
-      platformFeeAmount: escrow.platformFeeAmount,
-      totalChargedAmount: escrow.totalChargedAmount,
-      creatorReceivableAmount: escrow.creatorReceivableAmount,
-      razorpayOrderId: escrow.razorpayOrderId,
-      razorpayPaymentId: escrow.razorpayPaymentId,
-      razorpayRefundId: escrow.razorpayRefundId,
-      status: escrow.status,
-      paymentInitiatedAt: escrow.paymentInitiatedAt,
-      paymentCapturedAt: escrow.paymentCapturedAt,
-      fundedAt: escrow.fundedAt,
-      releasedAt: escrow.releasedAt,
-      refundedAt: escrow.refundedAt,
-      cancelledAt: escrow.cancelledAt,
-      paymentDeadline: escrow.paymentDeadline,
-      collabDeadline: escrow.collabDeadline,
-      createdAt: escrow.createdAt ?? new Date(),
-      updatedAt: escrow.updatedAt ?? new Date(),
-    };
-  }
-
-  private toCreatorView(escrow: EscrowDocument): EscrowCreatorView {
-    return {
-      _id: escrow._id.toString(),
-      bidId: escrow.bidId.toString(),
-      campaignId: escrow.campaignId.toString(),
-      brandId: escrow.brandId.toString(),
-      creatorId: escrow.creatorId.toString(),
-      agreedAmount: escrow.agreedAmount,
-      creatorReceivableAmount: escrow.creatorReceivableAmount,
-      status: escrow.status,
-      fundedAt: escrow.fundedAt,
-      releasedAt: escrow.releasedAt,
-      refundedAt: escrow.refundedAt,
-      cancelledAt: escrow.cancelledAt,
-      paymentDeadline: escrow.paymentDeadline,
-      collabDeadline: escrow.collabDeadline,
-      createdAt: escrow.createdAt ?? new Date(),
-      updatedAt: escrow.updatedAt ?? new Date(),
-    };
-  }
-
-  toCollabRoomView(room: CollabRoomDocument): CollabRoomView {
-    return {
-      _id: room._id.toString(),
-      escrowId: room.escrowId.toString(),
-      bidId: room.bidId.toString(),
-      campaignId: room.campaignId.toString(),
-      brandId: room.brandId.toString(),
-      creatorId: room.creatorId.toString(),
-      status: room.status,
-      maxRevisions: room.maxRevisions,
-      revisionCount: room.revisionCount,
-      collabDeadline: room.collabDeadline,
-      createdAt: room.createdAt ?? new Date(),
-      updatedAt: room.updatedAt ?? new Date(),
-    };
-  }
 }

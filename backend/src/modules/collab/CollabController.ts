@@ -3,10 +3,9 @@ import { NotFoundError } from "../../core/errors/NotFoundError";
 import { ApiResponse } from "../../core/responses/ApiResponse";
 import { AsyncHandler } from "../../utils/asyncHandler";
 import type { CollabRoomRepository } from "../../infrastructure/repositories/CollabRoomRepository";
-import type { CollabRoomDocument } from "../../models/CollabRoom.model";
 import { UserRole } from "../../core/types";
 import { collabListQuerySchema } from "../escrow/escrow.validator";
-import type { CollabRoomView } from "../escrow/escrow.types";
+import { EscrowMapper } from "../escrow/EscrowMapper";
 import { toParam } from "../../utils/requestParam";
 
 export class CollabController {
@@ -22,7 +21,7 @@ export class CollabController {
 
     res.status(200).json(
       new ApiResponse("Collab rooms retrieved", {
-        items: result.items.map((r) => this.toView(r)),
+        items: result.items.map((r) => EscrowMapper.toCollabRoomView(r)),
         pagination: result.pagination,
       }),
     );
@@ -42,23 +41,7 @@ export class CollabController {
       throw new NotFoundError("Collab room not found", "COLLAB_ROOM_NOT_FOUND");
     }
 
-    res.status(200).json(new ApiResponse("Collab room retrieved", { collabRoom: this.toView(room) }));
+    res.status(200).json(new ApiResponse("Collab room retrieved", { collabRoom: EscrowMapper.toCollabRoomView(room) }));
   });
 
-  private toView(room: CollabRoomDocument): CollabRoomView {
-    return {
-      _id: room._id.toString(),
-      escrowId: room.escrowId.toString(),
-      bidId: room.bidId.toString(),
-      campaignId: room.campaignId.toString(),
-      brandId: room.brandId.toString(),
-      creatorId: room.creatorId.toString(),
-      status: room.status,
-      maxRevisions: room.maxRevisions,
-      revisionCount: room.revisionCount,
-      collabDeadline: room.collabDeadline,
-      createdAt: room.createdAt ?? new Date(),
-      updatedAt: room.updatedAt ?? new Date(),
-    };
-  }
 }

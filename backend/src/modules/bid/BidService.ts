@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import type { BidDocument } from "../../models/Bid.model";
 import type { PaginatedResult } from "../../core/types";
 import type { BidRepository, BidListFilters, CreatorBidFilters } from "../../infrastructure/repositories/BidRepository";
@@ -7,20 +6,14 @@ import type { BrandRepository } from "../../infrastructure/repositories/BrandRep
 import type { CreatorRepository } from "../../infrastructure/repositories/CreatorRepository";
 import type { CreatorCampaignMatchRepository } from "../../infrastructure/repositories/CreatorCampaignMatchRepository";
 import type { IEventPublisher } from "../../core/interfaces/IEventPublisher";
-import type { ICacheService } from "../../core/interfaces/ICacheService";
 import type { ILockService } from "../../core/interfaces/ILockService";
 import { NotFoundError } from "../../core/errors/NotFoundError";
 import { ValidationError } from "../../core/errors/ValidationError";
 import { ConflictError } from "../../core/errors/ConflictError";
 import { ForbiddenError } from "../../core/errors/ForbiddenError";
 import { BID_EXCHANGE_NAME, BidEvent } from "../../config/config.constants";
-import {
-  BID_LIST_CACHE_TTL,
-  CREATOR_BID_CACHE_TTL,
-  BID_LOCK_TTL_SECONDS,
-  BUDGET_MIN_RATIO,
-  BUDGET_MAX_RATIO,
-} from "./bid.constants";
+import { BID_LOCK_TTL_SECONDS, BUDGET_MIN_RATIO, BUDGET_MAX_RATIO } from "./bid.constants";
+import { BidCacheManager } from "./BidCacheManager";
 import type { BidWithCreator, BidWithCampaign, AcceptBidResult } from "./bid.types";
 import type { SubmitBidInput } from "./bid.validator";
 import { BidStatus } from "../../models/Bid.model";
@@ -34,7 +27,7 @@ export class BidService {
     private readonly creatorRepository: CreatorRepository,
     private readonly creatorCampaignMatchRepository: CreatorCampaignMatchRepository,
     private readonly eventPublisher: IEventPublisher,
-    private readonly cacheService: ICacheService,
+    private readonly bidCache: BidCacheManager,
     private readonly lockService: ILockService,
   ) {}
 
@@ -100,7 +93,7 @@ export class BidService {
       BID_EXCHANGE_NAME,
     );
 
-    await this.invalidateBidListCache(data.campaignId);
+    await this.bidCache.invalidateBidList(data.campaignId);
 
     return bid;
   }
@@ -134,8 +127,8 @@ export class BidService {
     );
 
     await Promise.all([
-      this.invalidateBidListCache(bid.campaignId.toString()),
-      this.invalidateCreatorBidCache(creatorId),
+      this.bidCache.invalidateBidList(bid.campaignId.toString()),
+      this.bidCache.invalidateCreatorBids(creatorId),
     ]);
 
     return updated;
@@ -146,8 +139,7 @@ export class BidService {
     filters: CreatorBidFilters,
   ): Promise<PaginatedResult<BidWithCampaign>> {
     const page = filters.page ?? 1;
-    const cacheKey = this.creatorBidCacheKey(creatorId, page);
-    const cached = await this.cacheService.get<PaginatedResult<BidWithCampaign>>(cacheKey);
+    const cached = await this.bidCache.getCreatorBids(creatorId, page);
     if (cached) return cached;
 
     const result = await this.bidRepository.findByCreatorId(creatorId, filters);
@@ -200,7 +192,7 @@ export class BidService {
     });
 
     const enriched: PaginatedResult<BidWithCampaign> = { items, pagination: result.pagination };
-    await this.cacheService.set(cacheKey, enriched, CREATOR_BID_CACHE_TTL);
+    await this.bidCache.setCreatorBids(creatorId, page, enriched);
     return enriched;
   }
 
@@ -223,10 +215,8 @@ export class BidService {
       throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
     }
 
-    const cacheKey = this.bidListCacheKey(campaignId, filters);
-
     if (!filters.bidIds || filters.bidIds.length === 0) {
-      const cached = await this.cacheService.get<PaginatedResult<BidWithCreator>>(cacheKey);
+      const cached = await this.bidCache.getBidList(campaignId, filters);
       if (cached) return cached;
     }
 
@@ -282,7 +272,7 @@ export class BidService {
     const enriched: PaginatedResult<BidWithCreator> = { items, pagination: result.pagination };
 
     if (!filters.bidIds || filters.bidIds.length === 0) {
-      await this.cacheService.set(cacheKey, enriched, BID_LIST_CACHE_TTL);
+      await this.bidCache.setBidList(campaignId, filters, enriched);
     }
 
     return enriched;
@@ -315,7 +305,7 @@ export class BidService {
       BID_EXCHANGE_NAME,
     );
 
-    await this.invalidateBidListCache(bid.campaignId.toString());
+    await this.bidCache.invalidateBidList(bid.campaignId.toString());
 
     return updated;
   }
@@ -336,7 +326,7 @@ export class BidService {
     });
     if (!updated) throw new NotFoundError("Bid not found", "BID_NOT_FOUND");
 
-    await this.invalidateBidListCache(bid.campaignId.toString());
+    await this.bidCache.invalidateBidList(bid.campaignId.toString());
 
     return updated;
   }
@@ -373,8 +363,8 @@ export class BidService {
     );
 
     await Promise.all([
-      this.invalidateBidListCache(bid.campaignId.toString()),
-      this.invalidateCreatorBidCache(bid.creatorId.toString()),
+      this.bidCache.invalidateBidList(bid.campaignId.toString()),
+      this.bidCache.invalidateCreatorBids(bid.creatorId.toString()),
     ]);
 
     return updated;
@@ -476,9 +466,9 @@ export class BidService {
     }
 
     await Promise.all([
-      this.invalidateBidListCache(campaignId),
-      this.invalidateCreatorBidCache(creatorId),
-      ...declinedBids.map((b) => this.invalidateCreatorBidCache(b.creatorId)),
+      this.bidCache.invalidateBidList(campaignId),
+      this.bidCache.invalidateCreatorBids(creatorId),
+      ...declinedBids.map((b) => this.bidCache.invalidateCreatorBids(b.creatorId)),
     ]);
 
     return {
@@ -506,30 +496,8 @@ export class BidService {
     }
   }
 
-  private bidListCacheKey(campaignId: string, filters: BidListFilters): string {
-    const params = { ...filters };
-    delete params.bidIds;
-    const hash = crypto
-      .createHash("sha256")
-      .update(JSON.stringify(params, Object.keys(params).sort()))
-      .digest("hex")
-      .slice(0, 16);
-    return `cache:bids:campaign:${campaignId}:${hash}`;
-  }
-
-  private creatorBidCacheKey(creatorId: string, page: number): string {
-    return `cache:bids:creator:${creatorId}:${page}`;
-  }
-
   private bidAcceptLockKey(campaignId: string): string {
     return `lock:bid:accept:${campaignId}`;
   }
 
-  private async invalidateBidListCache(campaignId: string): Promise<void> {
-    await this.cacheService.delByPattern(`cache:bids:campaign:${campaignId}:*`);
-  }
-
-  private async invalidateCreatorBidCache(creatorId: string): Promise<void> {
-    await this.cacheService.delByPattern(`cache:bids:creator:${creatorId}:*`);
-  }
 }
