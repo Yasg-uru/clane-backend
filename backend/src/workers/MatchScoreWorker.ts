@@ -3,7 +3,7 @@ import type { RabbitMQConnection } from "../config/RabbitMQConnection";
 import type { CreatorCampaignMatchRepository } from "../infrastructure/repositories/CreatorCampaignMatchRepository";
 import type { CreatorRepository } from "../infrastructure/repositories/CreatorRepository";
 import type { MatchScorer } from "../modules/campaign/scoring/MatchScorer";
-import { CAMPAIGN_EXCHANGE_NAME } from "../config/config.constants";
+import { CAMPAIGN_EXCHANGE_NAME, CampaignEvent } from "../config/config.constants";
 import { logger } from "../utils/logger";
 import { CampaignDeliveryType } from "../models/Campaign.model";
 import { BaseWorker } from "./BaseWorker";
@@ -11,7 +11,7 @@ import { BaseWorker } from "./BaseWorker";
 export class MatchScoreWorker extends BaseWorker {
   protected readonly queueName = "creatorlane.match.compute";
   protected readonly exchangeName = CAMPAIGN_EXCHANGE_NAME;
-  protected readonly routingKey = "campaign.published";
+  protected readonly routingKey = CampaignEvent.Published;
   protected readonly prefetch = 10;
 
   constructor(

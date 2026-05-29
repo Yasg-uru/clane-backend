@@ -3,15 +3,16 @@ import type { RabbitMQConnection } from "../config/RabbitMQConnection";
 import type { NotificationRepository } from "../infrastructure/repositories/NotificationRepository";
 import type { EscrowService } from "../modules/escrow/EscrowService";
 import { ConflictError } from "../core/errors/ConflictError";
-import { ESCROW_EXCHANGE_NAME } from "../config/config.constants";
+import { ESCROW_EXCHANGE_NAME, EscrowEvent } from "../config/config.constants";
 import { logger } from "../utils/logger";
 import { UserRole } from "../core/types";
+import { NotificationType } from "../models/Notification.model";
 import { BaseWorker } from "./BaseWorker";
 
 export class EscrowFundedWorker extends BaseWorker {
   protected readonly queueName = "creatorlane.escrow.funded";
   protected readonly exchangeName = ESCROW_EXCHANGE_NAME;
-  protected readonly routingKey = "escrow.funded";
+  protected readonly routingKey = EscrowEvent.Funded;
   protected readonly prefetch = 10;
 
   constructor(
@@ -50,7 +51,7 @@ export class EscrowFundedWorker extends BaseWorker {
         this.notificationRepository.createNotification({
           recipientId: creatorId,
           recipientRole: UserRole.Creator,
-          type: "escrow.funded",
+          type: NotificationType.EscrowFunded,
           title: "Funds secured",
           body: `₹${agreedAmountRupees.toLocaleString("en-IN")} has been held in escrow. Your collaboration room is ready.`,
           meta: { collabRoomId, escrowId, campaignId, bidId, agreedAmount: agreedAmountPaise },
@@ -58,7 +59,7 @@ export class EscrowFundedWorker extends BaseWorker {
         this.notificationRepository.createNotification({
           recipientId: brandId,
           recipientRole: UserRole.Brand,
-          type: "collab.room_ready",
+          type: NotificationType.CollabRoomReady,
           title: "Collaboration room ready",
           body: "Your collab room is live. Message the creator to get started.",
           meta: { collabRoomId, escrowId, campaignId, bidId },
@@ -66,7 +67,7 @@ export class EscrowFundedWorker extends BaseWorker {
         this.notificationRepository.createNotification({
           recipientId: creatorId,
           recipientRole: UserRole.Creator,
-          type: "collab.room_ready",
+          type: NotificationType.CollabRoomReady,
           title: "Collaboration room ready",
           body: "Your collab room is live. The brand is waiting.",
           meta: { collabRoomId, escrowId, campaignId, bidId },

@@ -13,7 +13,7 @@ import { NotFoundError } from "../../core/errors/NotFoundError";
 import { ValidationError } from "../../core/errors/ValidationError";
 import { ConflictError } from "../../core/errors/ConflictError";
 import { ForbiddenError } from "../../core/errors/ForbiddenError";
-import { BID_EXCHANGE_NAME } from "../../config/config.constants";
+import { BID_EXCHANGE_NAME, BidEvent } from "../../config/config.constants";
 import {
   BID_LIST_CACHE_TTL,
   CREATOR_BID_CACHE_TTL,
@@ -88,7 +88,7 @@ export class BidService {
     await this.bidRepository.incrementCampaignBidCount(data.campaignId);
 
     this.eventPublisher.publish(
-      "bid.submitted",
+      BidEvent.Submitted,
       {
         bidId: bid._id.toString(),
         campaignId: data.campaignId,
@@ -123,7 +123,7 @@ export class BidService {
     if (!updated) throw new NotFoundError("Bid not found", "BID_NOT_FOUND");
 
     this.eventPublisher.publish(
-      "bid.withdrawn",
+      BidEvent.Withdrawn,
       {
         bidId,
         campaignId: bid.campaignId.toString(),
@@ -305,7 +305,7 @@ export class BidService {
     if (!updated) throw new NotFoundError("Bid not found", "BID_NOT_FOUND");
 
     this.eventPublisher.publish(
-      "bid.shortlisted",
+      BidEvent.Shortlisted,
       {
         bidId,
         campaignId: bid.campaignId.toString(),
@@ -360,7 +360,7 @@ export class BidService {
     if (!updated) throw new NotFoundError("Bid not found", "BID_NOT_FOUND");
 
     this.eventPublisher.publish(
-      "bid.declined",
+      BidEvent.Declined,
       {
         bidId,
         campaignId: bid.campaignId.toString(),
@@ -451,7 +451,7 @@ export class BidService {
     const creatorId = bid.creatorId.toString();
 
     this.eventPublisher.publish(
-      "bid.accepted",
+      BidEvent.Accepted,
       {
         bidId,
         campaignId,
@@ -465,7 +465,7 @@ export class BidService {
 
     if (declinedBids.length > 0) {
       this.eventPublisher.publish(
-        "bid.bulk_declined",
+        BidEvent.BulkDeclined,
         {
           campaignId,
           declinedBids,

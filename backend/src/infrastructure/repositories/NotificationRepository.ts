@@ -1,12 +1,12 @@
 import { Types } from "mongoose";
-import { NotificationModel, type NotificationDocument } from "../../models/Notification.model";
+import { NotificationModel, type NotificationDocument, type NotificationType } from "../../models/Notification.model";
 import type { PaginatedResult, UserRole } from "../../core/types";
 import { BaseRepository } from "./BaseRepository";
 
 export interface CreateNotificationInput {
   recipientId: string;
   recipientRole: UserRole;
-  type: string;
+  type: NotificationType;
   title: string;
   body: string;
   meta?: Record<string, unknown>;

@@ -17,9 +17,10 @@ import { ValidationError } from "../../core/errors/ValidationError";
 import { ConflictError } from "../../core/errors/ConflictError";
 import { AuthError } from "../../core/errors/AuthError";
 import { env } from "../../config/env";
-import { ESCROW_EXCHANGE_NAME } from "../../config/config.constants";
+import { ESCROW_EXCHANGE_NAME, EscrowEvent } from "../../config/config.constants";
 import { logger } from "../../utils/logger";
 import { UserRole } from "../../core/types";
+import { NotificationType } from "../../models/Notification.model";
 import { EscrowStatus } from "../../models/Escrow.model";
 import { BidStatus } from "../../models/Bid.model";
 import { CampaignStatus } from "../../models/Campaign.model";
@@ -128,7 +129,7 @@ export class EscrowService {
     await this.notificationRepository.createNotification({
       recipientId: bid.brandId.toString(),
       recipientRole: UserRole.Brand,
-      type: "escrow.payment_required",
+      type: NotificationType.EscrowPaymentRequired,
       title: "Complete your payment",
       body: `Your bid acceptance for ${bid.campaignTitleAtBid} requires payment of ₹${(totalChargedAmount / PAISE_PER_RUPEE).toLocaleString("en-IN")}. Complete payment to begin collaboration.`,
       meta: {
@@ -144,7 +145,7 @@ export class EscrowService {
     });
 
     this.eventPublisher.publish(
-      "escrow.initiated",
+      EscrowEvent.Initiated,
       {
         escrowId: escrow._id.toString(),
         bidId: bid._id.toString(),
@@ -253,7 +254,7 @@ export class EscrowService {
     if (!updated) throw new NotFoundError("Escrow not found", "ESCROW_NOT_FOUND");
 
     this.eventPublisher.publish(
-      "escrow.cancelled",
+      EscrowEvent.Cancelled,
       {
         escrowId,
         bidId: escrow.bidId.toString(),
@@ -321,7 +322,7 @@ export class EscrowService {
     });
 
     this.eventPublisher.publish(
-      "escrow.refund_initiated",
+      EscrowEvent.RefundInitiated,
       {
         escrowId,
         bidId: escrow.bidId.toString(),
@@ -401,7 +402,7 @@ export class EscrowService {
       this.notificationRepository.createNotification({
         recipientId: escrow.brandId.toString(),
         recipientRole: UserRole.Brand,
-        type: "escrow.cancelled",
+        type: NotificationType.EscrowCancelled,
         title: "Escrow cancelled",
         body: `Your escrow for ${campaignTitle} was cancelled due to payment timeout.`,
         meta: { escrowId: escrow._id.toString(), reason: "payment_timeout" },
@@ -409,7 +410,7 @@ export class EscrowService {
       this.notificationRepository.createNotification({
         recipientId: escrow.creatorId.toString(),
         recipientRole: UserRole.Creator,
-        type: "escrow.cancelled",
+        type: NotificationType.EscrowCancelled,
         title: "Bid no longer active",
         body: `The brand did not complete payment for ${campaignTitle}. Your bid is no longer active.`,
         meta: { escrowId: escrow._id.toString(), reason: "payment_timeout" },
@@ -417,7 +418,7 @@ export class EscrowService {
     ]);
 
     this.eventPublisher.publish(
-      "escrow.cancelled",
+      EscrowEvent.Cancelled,
       {
         escrowId: escrow._id.toString(),
         bidId: escrow.bidId.toString(),
@@ -524,7 +525,7 @@ export class EscrowService {
       );
 
       this.eventPublisher.publish(
-        "escrow.funded",
+        EscrowEvent.Funded,
         {
           escrowId: escrow._id.toString(),
           bidId: escrow.bidId.toString(),
@@ -558,7 +559,7 @@ export class EscrowService {
     await this.notificationRepository.createNotification({
       recipientId: escrow.brandId.toString(),
       recipientRole: UserRole.Brand,
-      type: "escrow.payment_failed",
+      type: NotificationType.EscrowPaymentFailed,
       title: "Payment failed",
       body: `Your payment for ${campaignTitle} failed. Please retry before ${escrow.paymentDeadline.toLocaleString("en-IN")}.`,
       meta: {

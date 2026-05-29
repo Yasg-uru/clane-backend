@@ -1,14 +1,14 @@
 import type { ConsumeMessage } from "amqplib";
 import type { RabbitMQConnection } from "../config/RabbitMQConnection";
 import type { CreatorCampaignMatchRepository } from "../infrastructure/repositories/CreatorCampaignMatchRepository";
-import { CAMPAIGN_EXCHANGE_NAME } from "../config/config.constants";
+import { CAMPAIGN_EXCHANGE_NAME, CampaignEvent } from "../config/config.constants";
 import { logger } from "../utils/logger";
 import { BaseWorker } from "./BaseWorker";
 
 export class CampaignCleanupWorker extends BaseWorker {
   protected readonly queueName = "creatorlane.campaign.cleanup";
   protected readonly exchangeName = CAMPAIGN_EXCHANGE_NAME;
-  protected readonly routingKey = ["campaign.unpublished", "campaign.closed", "campaign.expired"];
+  protected readonly routingKey = [CampaignEvent.Unpublished, CampaignEvent.Closed, CampaignEvent.Expired];
   protected readonly prefetch = 10;
 
   constructor(

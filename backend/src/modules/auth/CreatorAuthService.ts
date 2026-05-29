@@ -10,6 +10,7 @@ import type { AuthDocument } from "../../core/types";
 import type { CreatorRepository } from "../../infrastructure/repositories/CreatorRepository";
 import { BaseAuthService } from "./BaseAuthService";
 import { BCRYPT_SALT_ROUNDS } from "./auth.constants";
+import { AuthEvent } from "../../config/config.constants";
 import type { CreatorRegisterInput } from "./auth.validator";
 
 export class CreatorAuthService extends BaseAuthService {
@@ -54,7 +55,7 @@ export class CreatorAuthService extends BaseAuthService {
     });
 
     await this.sendRegistrationOtp(creator.email);
-    this.eventPublisher.publish("user.registered", {
+    this.eventPublisher.publish(AuthEvent.UserRegistered, {
       role: UserRole.Creator,
       email: creator.email,
       name: creator.fullName,

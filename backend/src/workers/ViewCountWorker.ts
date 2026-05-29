@@ -1,14 +1,14 @@
 import type { ConsumeMessage } from "amqplib";
 import type { RabbitMQConnection } from "../config/RabbitMQConnection";
 import type { CampaignRepository } from "../infrastructure/repositories/CampaignRepository";
-import { CAMPAIGN_EXCHANGE_NAME } from "../config/config.constants";
+import { CAMPAIGN_EXCHANGE_NAME, CampaignEvent } from "../config/config.constants";
 import { logger } from "../utils/logger";
 import { BaseWorker } from "./BaseWorker";
 
 export class ViewCountWorker extends BaseWorker {
   protected readonly queueName = "creatorlane.campaign.views";
   protected readonly exchangeName = CAMPAIGN_EXCHANGE_NAME;
-  protected readonly routingKey = "campaign.viewed";
+  protected readonly routingKey = CampaignEvent.Viewed;
   protected readonly prefetch = 50;
 
   constructor(

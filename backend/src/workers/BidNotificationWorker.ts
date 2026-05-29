@@ -1,15 +1,16 @@
 import type { ConsumeMessage } from "amqplib";
 import type { RabbitMQConnection } from "../config/RabbitMQConnection";
 import type { NotificationRepository } from "../infrastructure/repositories/NotificationRepository";
-import { BID_EXCHANGE_NAME } from "../config/config.constants";
+import { BID_EXCHANGE_NAME, BidEvent, BID_EVENT_BINDING } from "../config/config.constants";
 import { logger } from "../utils/logger";
 import { UserRole } from "../core/types";
+import { NotificationType } from "../models/Notification.model";
 import { BaseWorker } from "./BaseWorker";
 
 export class BidNotificationWorker extends BaseWorker {
   protected readonly queueName = "creatorlane.bid.notifications";
   protected readonly exchangeName = BID_EXCHANGE_NAME;
-  protected readonly routingKey = "bid.*";
+  protected readonly routingKey = BID_EVENT_BINDING;
   protected readonly prefetch = 20;
 
   constructor(
@@ -37,22 +38,22 @@ export class BidNotificationWorker extends BaseWorker {
 
   private async handleEvent(routingKey: string, payload: Record<string, unknown>): Promise<void> {
     switch (routingKey) {
-      case "bid.submitted":
+      case BidEvent.Submitted:
         await this.onBidSubmitted(payload);
         break;
-      case "bid.shortlisted":
+      case BidEvent.Shortlisted:
         await this.onBidShortlisted(payload);
         break;
-      case "bid.declined":
+      case BidEvent.Declined:
         await this.onBidDeclined(payload);
         break;
-      case "bid.withdrawn":
+      case BidEvent.Withdrawn:
         await this.onBidWithdrawn(payload);
         break;
-      case "bid.accepted":
+      case BidEvent.Accepted:
         await this.onBidAccepted(payload);
         break;
-      case "bid.bulk_declined":
+      case BidEvent.BulkDeclined:
         await this.onBidBulkDeclined(payload);
         break;
       default:
@@ -70,7 +71,7 @@ export class BidNotificationWorker extends BaseWorker {
     await this.notificationRepository.createNotification({
       recipientId: brandId,
       recipientRole: UserRole.Brand,
-      type: "bid.submitted",
+      type: NotificationType.BidSubmitted,
       title: "New bid received",
       body: `A creator submitted a bid of ₹${proposedAmount.toLocaleString("en-IN")} on ${campaignTitle}`,
       meta: { bidId, campaignId },
@@ -85,7 +86,7 @@ export class BidNotificationWorker extends BaseWorker {
     await this.notificationRepository.createNotification({
       recipientId: creatorId,
       recipientRole: UserRole.Creator,
-      type: "bid.shortlisted",
+      type: NotificationType.BidShortlisted,
       title: "Your bid has been shortlisted",
       body: "A brand has shortlisted your bid for further review",
       meta: { bidId, campaignId },
@@ -100,7 +101,7 @@ export class BidNotificationWorker extends BaseWorker {
     await this.notificationRepository.createNotification({
       recipientId: creatorId,
       recipientRole: UserRole.Creator,
-      type: "bid.declined",
+      type: NotificationType.BidDeclined,
       title: "Your bid was not selected",
       body: "The brand has reviewed your bid and decided not to proceed at this time",
       meta: { bidId, campaignId },
@@ -115,7 +116,7 @@ export class BidNotificationWorker extends BaseWorker {
     await this.notificationRepository.createNotification({
       recipientId: brandId,
       recipientRole: UserRole.Brand,
-      type: "bid.withdrawn",
+      type: NotificationType.BidWithdrawn,
       title: "A creator withdrew their bid",
       body: "A creator has withdrawn their bid from your campaign",
       meta: { bidId, campaignId },
@@ -131,7 +132,7 @@ export class BidNotificationWorker extends BaseWorker {
     await this.notificationRepository.createNotification({
       recipientId: creatorId,
       recipientRole: UserRole.Creator,
-      type: "bid.accepted",
+      type: NotificationType.BidAccepted,
       title: "Congratulations! Your bid was accepted",
       body: `Your bid of ₹${agreedAmount.toLocaleString("en-IN")} has been accepted. Get ready to collaborate!`,
       meta: { bidId, campaignId, agreedAmount },
@@ -159,7 +160,7 @@ export class BidNotificationWorker extends BaseWorker {
         this.notificationRepository.createNotification({
           recipientId: item.creatorId,
           recipientRole: UserRole.Creator,
-          type: "bid.declined",
+          type: NotificationType.BidDeclined,
           title: "Your bid was not selected",
           body: "The campaign has selected another creator. Thank you for your bid!",
           meta: { bidId: item.bidId, campaignId, autoDeclined: true },

@@ -11,7 +11,7 @@ import type { MatchScorer } from "./scoring/MatchScorer";
 import { NotFoundError } from "../../core/errors/NotFoundError";
 import { ValidationError } from "../../core/errors/ValidationError";
 import { ConflictError } from "../../core/errors/ConflictError";
-import { CAMPAIGN_EXCHANGE_NAME } from "../../config/config.constants";
+import { CAMPAIGN_EXCHANGE_NAME, CampaignEvent } from "../../config/config.constants";
 import {
   BROWSE_CACHE_TTL,
   BRAND_CAMPAIGN_CACHE_TTL,
@@ -96,7 +96,7 @@ export class CampaignService {
     if (!updated) throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
 
     this.eventPublisher.publish(
-      "campaign.published",
+      CampaignEvent.Published,
       {
         campaignId,
         brandId,
@@ -134,7 +134,7 @@ export class CampaignService {
     if (!updated) throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
 
     this.eventPublisher.publish(
-      "campaign.unpublished",
+      CampaignEvent.Unpublished,
       { campaignId, brandId },
       CAMPAIGN_EXCHANGE_NAME,
     );
@@ -166,7 +166,7 @@ export class CampaignService {
     if (!updated) throw new NotFoundError("Campaign not found", "CAMPAIGN_NOT_FOUND");
 
     this.eventPublisher.publish(
-      "campaign.closed",
+      CampaignEvent.Closed,
       { campaignId, brandId },
       CAMPAIGN_EXCHANGE_NAME,
     );
@@ -254,7 +254,7 @@ export class CampaignService {
       ).get((cached._id as unknown as { toString(): string }).toString());
 
       this.eventPublisher.publish(
-        "campaign.viewed",
+        CampaignEvent.Viewed,
         { campaignId: (cached._id as unknown as { toString(): string }).toString(), creatorId },
         CAMPAIGN_EXCHANGE_NAME,
       );
@@ -281,7 +281,7 @@ export class CampaignService {
     await this.cacheService.set(this.detailCacheKey(slug), campaign.toObject(), DETAIL_CACHE_TTL);
 
     this.eventPublisher.publish(
-      "campaign.viewed",
+      CampaignEvent.Viewed,
       { campaignId, creatorId },
       CAMPAIGN_EXCHANGE_NAME,
     );
@@ -333,7 +333,7 @@ export class CampaignService {
       });
 
       this.eventPublisher.publish(
-        "campaign.expired",
+        CampaignEvent.Expired,
         {
           campaignId: campaign._id.toString(),
           brandId: campaign.brandId.toString(),

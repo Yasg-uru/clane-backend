@@ -1,6 +1,6 @@
 import type { ConsumeMessage } from "amqplib";
 import type { RabbitMQConnection } from "../config/RabbitMQConnection";
-import { BID_EXCHANGE_NAME } from "../config/config.constants";
+import { BID_EXCHANGE_NAME, BidEvent } from "../config/config.constants";
 import type { EscrowService } from "../modules/escrow/EscrowService";
 import { ConflictError } from "../core/errors/ConflictError";
 import { ServiceUnavailableError } from "../core/errors/ServiceUnavailableError";
@@ -10,7 +10,7 @@ import { BaseWorker } from "./BaseWorker";
 export class EscrowInitWorker extends BaseWorker {
   protected readonly queueName = "creatorlane.bid.escrow";
   protected readonly exchangeName = BID_EXCHANGE_NAME;
-  protected readonly routingKey = "bid.accepted";
+  protected readonly routingKey = BidEvent.Accepted;
   protected readonly prefetch = 5;
 
   constructor(

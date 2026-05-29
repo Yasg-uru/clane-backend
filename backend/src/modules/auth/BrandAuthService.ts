@@ -10,6 +10,7 @@ import type { AuthDocument } from "../../core/types";
 import type { BrandRepository } from "../../infrastructure/repositories/BrandRepository";
 import { BaseAuthService } from "./BaseAuthService";
 import { BCRYPT_SALT_ROUNDS } from "./auth.constants";
+import { AuthEvent } from "../../config/config.constants";
 import type { BrandRegisterInput } from "./auth.validator";
 
 export class BrandAuthService extends BaseAuthService {
@@ -55,7 +56,7 @@ export class BrandAuthService extends BaseAuthService {
     });
 
     await this.sendRegistrationOtp(brand.email);
-    this.eventPublisher.publish("user.registered", {
+    this.eventPublisher.publish(AuthEvent.UserRegistered, {
       role: UserRole.Brand,
       email: brand.email,
       name: brand.fullName,
