@@ -11,6 +11,7 @@ import { NotFoundError } from "../../core/errors/NotFoundError";
 import { ConflictError } from "../../core/errors/ConflictError";
 import { RateLimitError } from "../../core/errors/RateLimitError";
 import { ServiceUnavailableError } from "../../core/errors/ServiceUnavailableError";
+import { UserRole, AuthProvider } from "../../core/types";
 import type {
   AuthDocument,
   JwtPayload,
@@ -19,7 +20,6 @@ import type {
   SafeUser,
   SocialAuthResult,
   SocialProfile,
-  UserRole,
 } from "../../core/types";
 import { EncryptionService } from "../../utils/crypto";
 import { env } from "../../config/env";
@@ -541,16 +541,16 @@ export abstract class BaseAuthService {
   }
 
   private buildInstagramPreviewUser(profile: SocialProfile): SafeUser {
-    if (this.role === "brand") {
+    if (this.role === UserRole.Brand) {
       const safeBrand: SafeBrand = {
         id: "",
-        role: "brand",
+        role: UserRole.Brand,
         fullName: profile.fullName,
         email: "",
         city: "",
         isEmailVerified: false,
-        authProvider: "instagram",
-        authProviders: ["instagram"],
+        authProvider: AuthProvider.Instagram,
+        authProviders: [AuthProvider.Instagram],
         brandName: profile.fullName,
         brandType: "",
         instagramHandle: profile.instagramHandle ?? undefined,
@@ -565,13 +565,13 @@ export abstract class BaseAuthService {
     }
     const safeCreator: SafeCreator = {
       id: "",
-      role: "creator",
+      role: UserRole.Creator,
       fullName: profile.fullName,
       email: "",
       city: "",
       isEmailVerified: false,
-      authProvider: "instagram",
-      authProviders: ["instagram"],
+      authProvider: AuthProvider.Instagram,
+      authProviders: [AuthProvider.Instagram],
       instagramHandle: profile.instagramHandle ?? "",
       instagramFollowers: profile.instagramFollowers ?? 0,
       niche: [],
@@ -604,10 +604,10 @@ export abstract class BaseAuthService {
       updatedAt: toIso(user.updatedAt),
     };
 
-    if (user.role === "brand") {
+    if (user.role === UserRole.Brand) {
       const safeBrand: SafeBrand = {
         ...base,
-        role: "brand",
+        role: UserRole.Brand,
         brandName: user.brandName ?? "",
         brandType: user.brandType ?? "",
         instagramHandle: user.instagramHandle,
@@ -623,7 +623,7 @@ export abstract class BaseAuthService {
 
     const safeCreator: SafeCreator = {
       ...base,
-      role: "creator",
+      role: UserRole.Creator,
       instagramHandle: user.instagramHandle ?? "",
       instagramFollowers: user.instagramFollowers ?? 0,
       niche: user.niche ?? [],

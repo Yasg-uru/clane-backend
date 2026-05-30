@@ -8,16 +8,18 @@ import type { ISocialAuthStrategy } from "../../core/interfaces/ISocialAuthStrat
 import type { IOAuthStateService, SocialProvider } from "../../core/interfaces/IOAuthStateService";
 import { AuthError } from "../../core/errors/AuthError";
 import { ConflictError } from "../../core/errors/ConflictError";
-import type { AuthDocument, SocialProfile, UserRole } from "../../core/types";
+import type { AuthDocument, SocialProfile} from "../../core/types";
+import {UserRole} from "../../core/types";
 import type { CreatorRepository } from "../../infrastructure/repositories/CreatorRepository";
 import { EncryptionService } from "../../utils/crypto";
 import { env } from "../../config/env";
 import { BaseAuthService } from "./BaseAuthService";
 import { BCRYPT_SALT_ROUNDS } from "./auth.constants";
+import { AuthEvent } from "../../config/config.constants";
 import type { CreatorRegisterInput } from "./auth.validator";
 
 export class CreatorAuthService extends BaseAuthService {
-  protected readonly role: UserRole = "creator";
+  protected readonly role: UserRole = UserRole.Creator;
 
   constructor(
     private readonly creatorRepository: CreatorRepository,
@@ -48,7 +50,7 @@ export class CreatorAuthService extends BaseAuthService {
 
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
     const creator = await this.creatorRepository.create({
-      role: "creator",
+      role: UserRole.Creator,
       fullName: data.fullName,
       email: data.email,
       passwordHash,
@@ -63,8 +65,8 @@ export class CreatorAuthService extends BaseAuthService {
     });
 
     await this.sendRegistrationOtp(creator.email);
-    this.eventPublisher.publish("user.registered", {
-      role: "creator",
+    this.eventPublisher.publish(AuthEvent.UserRegistered, {
+      role: UserRole.Creator,
       email: creator.email,
       name: creator.fullName,
     });

@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { cleanEnv, makeValidator, port, str, url } from "envalid";
+import { cleanEnv, makeValidator, num, port, str, url } from "envalid";
 
 // [CRITICAL] JWT/cookie secrets must be at least 32 chars to be cryptographically safe.
 const secret = makeValidator<string>((value) => {
@@ -48,4 +48,12 @@ export const env = cleanEnv(process.env, {
   INSTAGRAM_REDIRECT_URI_CREATOR: url(),
   // AES-256-GCM key for encrypting Instagram access tokens at rest
   INSTAGRAM_TOKEN_ENCRYPTION_KEY: hexKey32(),
+  GOOGLE_REDIRECT_URI: url(),
+  // Razorpay
+  RAZORPAY_KEY_ID: str(),
+  RAZORPAY_KEY_SECRET: str(),
+  RAZORPAY_WEBHOOK_SECRET: str(),
+  RAZORPAY_ACCOUNT_NUMBER: str(),
+  PAYMENT_TIMEOUT_HOURS: num({ default: 24 }),
+  FRONTEND_PAYMENT_URL: url(),
 });

@@ -1,8 +1,9 @@
-import type { Request, RequestHandler } from "express";
+import type { RequestHandler } from "express";
 import { AuthError } from "../../core/errors/AuthError";
 import { ValidationError } from "../../core/errors/ValidationError";
 import type { ITokenService } from "../../core/interfaces/ITokenService";
-import type { SocialProvider, UserRole } from "../../core/types";
+import { UserRole } from "../../core/types";
+import type { SocialProvider } from "../../core/types";
 import { ApiResponse } from "../../core/responses/ApiResponse";
 import { AsyncHandler } from "../../utils/asyncHandler";
 import {
@@ -19,6 +20,7 @@ import {
 import type { BrandAuthService } from "./BrandAuthService";
 import type { CreatorAuthService } from "./CreatorAuthService";
 import type { BaseAuthService } from "./BaseAuthService";
+import { AuthUtils } from "./auth.utils";
 import {
   CLEAR_REFRESH_COOKIE_OPTIONS,
   REFRESH_COOKIE_OPTIONS,
@@ -72,7 +74,7 @@ export class AuthController {
   });
 
   refresh = AsyncHandler.wrap(async (req, res) => {
-    const rawToken = this.getRefreshTokenFromCookie(req);
+    const rawToken = AuthUtils.getRefreshTokenFromCookie(req);
     const decoded = this.tokenService.verifyRefreshToken(rawToken);
     const result = await this.getService(decoded.role).refreshToken(rawToken, decoded);
     res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS);
@@ -196,18 +198,7 @@ export class AuthController {
   });
 
   private getService(role: UserRole): BaseAuthService {
-    return role === "brand" ? this.brandAuthService : this.creatorAuthService;
+    return role === UserRole.Brand ? this.brandAuthService : this.creatorAuthService;
   }
 
-  private getRefreshTokenFromCookie(req: Request): string {
-    const cookies = req.cookies as unknown;
-    const cookieRecord =
-      typeof cookies === "object" && cookies !== null
-        ? (cookies as Record<string, unknown>)
-        : {};
-    const refreshToken = cookieRecord[REFRESH_TOKEN_COOKIE];
-
-    if (typeof refreshToken !== "string") throw new AuthError("Unauthorized");
-    return refreshToken;
-  }
 }

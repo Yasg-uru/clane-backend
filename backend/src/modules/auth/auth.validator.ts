@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { USER_ROLES } from "../../core/types";
+import { UserRole } from "../../core/types";
 
 // Rejects < and > to block embedded HTML/script tags (defense-in-depth against XSS).
 const NO_HTML_RE = /^[^<>]*$/;
@@ -36,7 +36,7 @@ const instagramHandleSchema = z.preprocess((value) => {
   return trimmed.length > 0 ? trimmed : undefined;
 }, z.string().min(1).regex(/^@?[a-zA-Z0-9._]+$/, "Invalid Instagram handle format").optional());
 
-const roleSchema = z.enum(USER_ROLES);
+const roleSchema = z.nativeEnum(UserRole);
 
 export const brandRegisterSchema = z.object({
   fullName: trimmedString("Full name is required"),

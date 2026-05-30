@@ -65,4 +65,15 @@ export class CreatorRepository extends BaseRepository<CreatorDocument> {
     const result = await CreatorModel.findByIdAndDelete(id).exec();
     return result !== null;
   }
+
+  async findAllActive(): Promise<CreatorDocument[]> {
+    return CreatorModel.find(
+      { isEmailVerified: true },
+      { instagramHandle: 1, instagramFollowers: 1, niche: 1, city: 1, instagramConnected: 1, location: 1 },
+    ).exec();
+  }
+
+  async findByIds(ids: string[]): Promise<CreatorDocument[]> {
+    return CreatorModel.find({ _id: { $in: ids } }).exec();
+  }
 }

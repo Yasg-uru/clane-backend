@@ -8,16 +8,18 @@ import type { ISocialAuthStrategy } from "../../core/interfaces/ISocialAuthStrat
 import type { IOAuthStateService, SocialProvider } from "../../core/interfaces/IOAuthStateService";
 import { AuthError } from "../../core/errors/AuthError";
 import { ConflictError } from "../../core/errors/ConflictError";
-import type { AuthDocument, SocialProfile, UserRole } from "../../core/types";
+import { UserRole } from "../../core/types";
+import type { AuthDocument, SocialProfile } from "../../core/types";
 import type { BrandRepository } from "../../infrastructure/repositories/BrandRepository";
 import { EncryptionService } from "../../utils/crypto";
 import { env } from "../../config/env";
 import { BaseAuthService } from "./BaseAuthService";
 import { BCRYPT_SALT_ROUNDS } from "./auth.constants";
+import { AuthEvent } from "../../config/config.constants";
 import type { BrandRegisterInput } from "./auth.validator";
 
 export class BrandAuthService extends BaseAuthService {
-  protected readonly role: UserRole = "brand";
+  protected readonly role: UserRole = UserRole.Brand;
 
   constructor(
     private readonly brandRepository: BrandRepository,
@@ -48,7 +50,7 @@ export class BrandAuthService extends BaseAuthService {
 
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
     const brand = await this.brandRepository.create({
-      role: "brand",
+      role: UserRole.Brand,
       fullName: data.fullName,
       email: data.email,
       passwordHash,
@@ -63,8 +65,8 @@ export class BrandAuthService extends BaseAuthService {
     });
 
     await this.sendRegistrationOtp(brand.email);
-    this.eventPublisher.publish("user.registered", {
-      role: "brand",
+    this.eventPublisher.publish(AuthEvent.UserRegistered, {
+      role: UserRole.Brand,
       email: brand.email,
       name: brand.fullName,
       brandName: brand.brandName,

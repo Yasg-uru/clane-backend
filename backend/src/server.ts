@@ -5,12 +5,32 @@ import { RabbitMQConnection } from "./config/RabbitMQConnection";
 import { env } from "./config/env";
 import { logger } from "./utils/logger";
 import { App } from "./app";
+import type { MatchScoreWorker } from "./workers/MatchScoreWorker";
+import type { CampaignCleanupWorker } from "./workers/CampaignCleanupWorker";
+import type { ViewCountWorker } from "./workers/ViewCountWorker";
+import type { BidNotificationWorker } from "./workers/BidNotificationWorker";
+import type { EscrowInitWorker } from "./workers/EscrowInitWorker";
+import type { EscrowFundedWorker } from "./workers/EscrowFundedWorker";
+import type { CampaignExpiryJob } from "./jobs/CampaignExpiryJob";
+import type { EscrowPaymentTimeoutJob } from "./jobs/EscrowPaymentTimeoutJob";
+import type { EscrowAutoRefundJob } from "./jobs/EscrowAutoRefundJob";
 
 export class Server {
   private httpServer!: http.Server;
   private isShuttingDown = false;
 
-  constructor(private readonly app: App) {}
+  constructor(
+    private readonly app: App,
+    private readonly matchScoreWorker: MatchScoreWorker,
+    private readonly campaignCleanupWorker: CampaignCleanupWorker,
+    private readonly viewCountWorker: ViewCountWorker,
+    private readonly campaignExpiryJob: CampaignExpiryJob,
+    private readonly bidNotificationWorker: BidNotificationWorker,
+    private readonly escrowInitWorker: EscrowInitWorker,
+    private readonly escrowFundedWorker: EscrowFundedWorker,
+    private readonly escrowPaymentTimeoutJob: EscrowPaymentTimeoutJob,
+    private readonly escrowAutoRefundJob: EscrowAutoRefundJob,
+  ) {}
 
   async start(): Promise<void> {
     const db = DatabaseConnection.getInstance();
@@ -20,6 +40,19 @@ export class Server {
     await db.connect();
     await redis.connect();
     await rabbitMQ.connect();
+
+    await Promise.all([
+      this.matchScoreWorker.start(),
+      this.campaignCleanupWorker.start(),
+      this.viewCountWorker.start(),
+      this.bidNotificationWorker.start(),
+      this.escrowInitWorker.start(),
+      this.escrowFundedWorker.start(),
+    ]);
+
+    this.campaignExpiryJob.start();
+    this.escrowPaymentTimeoutJob.start();
+    this.escrowAutoRefundJob.start();
 
     this.httpServer = this.app.getExpressApp().listen(env.PORT, this.onListening);
     this.registerShutdownHandlers();
@@ -63,6 +96,19 @@ export class Server {
     forceExit.unref();
 
     try {
+      this.campaignExpiryJob.stop();
+      this.escrowPaymentTimeoutJob.stop();
+      this.escrowAutoRefundJob.stop();
+
+      await Promise.all([
+        this.matchScoreWorker.stop(),
+        this.campaignCleanupWorker.stop(),
+        this.viewCountWorker.stop(),
+        this.bidNotificationWorker.stop(),
+        this.escrowInitWorker.stop(),
+        this.escrowFundedWorker.stop(),
+      ]);
+
       await this.closeHttpServer();
 
       const db = DatabaseConnection.getInstance();
