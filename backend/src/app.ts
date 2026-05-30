@@ -2,8 +2,10 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express, { type Application } from "express";
 import helmet from "helmet";
+import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env";
 import { ApiResponse } from "./core/responses/ApiResponse";
+import { swaggerSpec } from "./docs/swagger";
 import type { AuthController } from "./modules/auth/AuthController";
 import type { CampaignController } from "./modules/campaign/CampaignController";
 import type { BidController } from "./modules/bid/BidController";
@@ -47,7 +49,14 @@ export class App {
 
   private initialiseMiddleware(): void {
     this.express.set("trust proxy", 1);
-    this.express.use(helmet());
+    // Allow inline scripts/styles on /api/docs only — swagger-ui-express requires them.
+    // All other helmet protections remain fully active.
+    this.express.use((req, res, next) => {
+      if (req.path.startsWith("/api/docs")) {
+        return helmet({ contentSecurityPolicy: false })(req, res, next);
+      }
+      return helmet()(req, res, next);
+    });
     this.express.use(
       cors({
         origin: env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()),
@@ -66,6 +75,8 @@ export class App {
   }
 
   private initialiseRoutes(): void {
+    this.express.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
     this.express.get("/health", (_req, res) => {
       res.status(200).json(
         new ApiResponse("OK", { service: "creatorlane-backend" }),
