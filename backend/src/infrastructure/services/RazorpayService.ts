@@ -6,40 +6,9 @@ import type { Refunds } from "razorpay/dist/types/refunds";
 import type { Transfers } from "razorpay/dist/types/transfers";
 import { ServiceUnavailableError } from "../../core/errors/ServiceUnavailableError";
 import { logger } from "../../utils/logger";
+import type { RazorpayServiceConfig, CreateOrderParams, InitiateRefundParams, TransferParams } from "./razorpay.types";
 
-export interface RazorpayServiceConfig {
-  keyId: string;
-  keySecret: string;
-  webhookSecret: string;
-  accountNumber: string;
-}
-
-export interface CreateOrderParams {
-  amount: number;
-  currency: "INR";
-  receipt: string;
-  notes: {
-    bidId: string;
-    campaignId: string;
-    brandId: string;
-    creatorId: string;
-    platformFee: number;
-  };
-}
-
-export interface InitiateRefundParams {
-  paymentId: string;
-  amount: number;
-  notes: Record<string, string>;
-}
-
-export interface TransferParams {
-  paymentId: string;
-  amount: number;
-  currency: "INR";
-  accountId: string;
-  notes: Record<string, string>;
-}
+export type { RazorpayServiceConfig, CreateOrderParams, InitiateRefundParams, TransferParams };
 
 export class RazorpayService {
   private readonly client: Razorpay;

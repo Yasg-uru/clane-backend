@@ -1,11 +1,5 @@
 import { PLATFORM_FEE_RATIO, PAISE_PER_RUPEE } from "./escrow.constants";
-
-export interface EscrowAmounts {
-  agreedAmount: number;
-  platformFeeAmount: number;
-  totalChargedAmount: number;
-  creatorReceivableAmount: number;
-}
+import type { EscrowAmounts } from "./escrow.types";
 
 export class EscrowUtils {
   static calculateAmounts(proposedAmountRupees: number): EscrowAmounts {

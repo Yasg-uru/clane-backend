@@ -1,6 +1,13 @@
 import type { EscrowStatus } from "../../models/Escrow.model";
 import type { CollabRoomStatus } from "../../models/CollabRoom.model";
 
+export interface EscrowAmounts {
+  agreedAmount: number;
+  platformFeeAmount: number;
+  totalChargedAmount: number;
+  creatorReceivableAmount: number;
+}
+
 export interface EscrowBrandView {
   _id: string;
   bidId: string;

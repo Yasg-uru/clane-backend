@@ -109,6 +109,7 @@ src/
 
   utils/
     asyncHandler.ts             Wraps async route handlers, forwards errors.
+    asyncHandler.types.ts       AsyncRequestHandler type for async route handlers.
     logger.ts                   Winston logger singleton — use this, never console.log.
     crypto.ts                   AES-256-GCM encrypt/decrypt for Instagram tokens.
     requestParam.ts             toParam(val) — extracts a single string param from Express req.params or req.query. Import in all controllers instead of defining locally.
@@ -116,6 +117,43 @@ src/
   app.ts                        class App — Express wiring + route mounting.
   server.ts                     class Server + COMPOSITION ROOT (all new calls live here).
 ```
+
+---
+
+## Types Organization — Strict Convention
+
+**Types must NEVER be defined inline in implementation files.** Follow this hierarchy:
+
+**1. Module-Specific Types**
+- **Location:** `src/modules/<feature>/<feature>.types.ts`
+- **Contains:** Interfaces, types, DTOs used only within one module.
+- **Examples:**
+  - `src/modules/escrow/escrow.types.ts` — EscrowAmounts, EscrowBrandView, EscrowCreatorView, CollabRoomView.
+
+**2. Service/Utility Config Types**
+- **Location:** `src/infrastructure/services/<service>.types.ts`
+- **Contains:** Configuration interfaces, parameter interfaces for services.
+- **Examples:**
+  - `src/infrastructure/services/razorpay.types.ts` — RazorpayServiceConfig, CreateOrderParams, InitiateRefundParams, TransferParams.
+  - `src/utils/asyncHandler.types.ts` — AsyncRequestHandler.
+
+**3. Model Types**
+- **Location:** Model file itself (`src/models/*.model.ts`)
+- **Contains:** Mongoose schema interfaces (IModel), document types, model-specific enums (e.g., EscrowStatus).
+- **Note:** Model files are an exception because schema and types are tightly coupled.
+
+**4. Shared Domain Types**
+- **Location:** `src/core/types/index.ts`
+- **Contains:** Types used across modules or by infrastructure (JwtPayload, SafeUser, PaginatedResult, etc.).
+
+**5. Service Interfaces (NOT Types)**
+- **Location:** `src/core/interfaces/`
+- **Contains:** Interface contracts (IRepository, ITokenService, etc.). These define service behavior, not domain data.
+
+**Implementation Files Import Types, Never Export Them**
+- `src/infrastructure/services/RazorpayService.ts` → imports from `razorpay.types.ts` → re-exports for external use
+- `src/modules/escrow/escrow.utils.ts` → imports from `escrow.types.ts`
+- `src/utils/asyncHandler.ts` → imports from `asyncHandler.types.ts`
 
 ---
 

@@ -1,6 +1,5 @@
-import type { NextFunction, Request, RequestHandler, Response } from "express";
-
-type AsyncRequestHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
+import type { RequestHandler } from "express";
+import type { AsyncRequestHandler } from "./asyncHandler.types";
 
 export class AsyncHandler {
   static wrap(handler: AsyncRequestHandler): RequestHandler {
