@@ -14,7 +14,13 @@ const PUBLIC_PATHS = new Set<string>([
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const isPublic = PUBLIC_PATHS.has(pathname) || pathname.startsWith("/_next") || pathname.startsWith("/api");
+  const isPublic =
+    PUBLIC_PATHS.has(pathname) ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/auth/callback/") ||
+    pathname.startsWith("/auth/complete-profile/") ||
+    pathname.startsWith("/auth/instagram-email/");
 
   const hasRefreshCookie = request.cookies.has("refreshToken");
 

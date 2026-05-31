@@ -5,7 +5,10 @@ export class BrandUser extends User {
   readonly brandName: string;
   readonly brandType: string;
   readonly instagramHandle?: string;
-  readonly profilePhotoUrl?: string;
+  readonly instagramFollowers?: number;
+  readonly instagramBio?: string;
+  readonly instagramConnected?: boolean;
+  readonly instagramProfilePicUrl?: string;
   readonly googleConnected: boolean;
   readonly isProfileComplete: boolean;
 
@@ -14,7 +17,10 @@ export class BrandUser extends User {
     this.brandName = data.brandName;
     this.brandType = data.brandType;
     this.instagramHandle = data.instagramHandle;
-    this.profilePhotoUrl = data.profilePhotoUrl;
+    this.instagramFollowers = data.instagramFollowers;
+    this.instagramBio = data.instagramBio;
+    this.instagramConnected = data.instagramConnected;
+    this.instagramProfilePicUrl = data.instagramProfilePicUrl;
     this.googleConnected = data.googleConnected;
     this.isProfileComplete = data.isProfileComplete;
   }

@@ -6,6 +6,9 @@ export const ROUTES = {
     registerCreator: "/register/creator",
     verifyEmail: "/verify-email",
     forgotPassword: "/forgot-password",
+    oauthCallback: (role: string, provider: string) => `/auth/callback/${role}/${provider}`,
+    completeProfile: (role: string) => `/auth/complete-profile/${role}`,
+    instagramEmail: (role: string) => `/auth/instagram-email/${role}`,
   },
   brand: {
     dashboard: "/dashboard",

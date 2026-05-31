@@ -70,8 +70,35 @@ export const resendOtpSchema = z.object({
   role: roleSchema,
 });
 
+export const brandCompleteProfileSchema = z.object({
+  brandName: trimmedString("Brand name is required"),
+  brandType: trimmedString("Brand type is required"),
+  city: trimmedString("City is required"),
+});
+
+export const creatorCompleteProfileSchema = z.object({
+  instagramHandle: z
+    .string()
+    .min(1, "Instagram handle is required")
+    .regex(/^@?[a-zA-Z0-9._]+$/, "Invalid Instagram handle format")
+    .transform((v) => v.trim()),
+  instagramFollowers: z
+    .number({ error: "Must be a number" })
+    .int("Must be an integer")
+    .min(0, "Cannot be negative"),
+  niche: z.array(z.string().min(1)).min(1, "At least one niche is required"),
+  city: trimmedString("City is required"),
+});
+
+export const submitInstagramEmailSchema = z.object({
+  email: emailSchema,
+});
+
 export type BrandRegisterInput = z.infer<typeof brandRegisterSchema>;
 export type CreatorRegisterInput = z.infer<typeof creatorRegisterSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ResendOtpInput = z.infer<typeof resendOtpSchema>;
+export type BrandCompleteProfileInput = z.infer<typeof brandCompleteProfileSchema>;
+export type CreatorCompleteProfileInput = z.infer<typeof creatorCompleteProfileSchema>;
+export type SubmitInstagramEmailInput = z.infer<typeof submitInstagramEmailSchema>;

@@ -12,6 +12,21 @@ export const AuthProvider = {
 } as const;
 export type AuthProvider = (typeof AuthProvider)[keyof typeof AuthProvider];
 
+export const SocialProvider = {
+  GOOGLE: "google",
+  INSTAGRAM: "instagram",
+  YOUTUBE: "youtube",
+} as const;
+export type SocialProvider = (typeof SocialProvider)[keyof typeof SocialProvider];
+
+export const SocialAuthStatus = {
+  AUTHENTICATED: "authenticated",
+  PROFILE_INCOMPLETE: "profile_incomplete",
+  PENDING_EMAIL_VERIFICATION: "pending_email_verification",
+  PENDING_EMAIL_SUBMISSION: "pending_email_submission",
+} as const;
+export type SocialAuthStatus = (typeof SocialAuthStatus)[keyof typeof SocialAuthStatus];
+
 interface SafeUserBase {
   id: string;
   role: UserRole;
@@ -20,6 +35,7 @@ interface SafeUserBase {
   city: string;
   isEmailVerified: boolean;
   authProvider: AuthProvider;
+  authProviders: AuthProvider[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -29,7 +45,10 @@ export interface SafeBrand extends SafeUserBase {
   brandName: string;
   brandType: string;
   instagramHandle?: string;
-  profilePhotoUrl?: string;
+  instagramFollowers?: number;
+  instagramBio?: string;
+  instagramConnected?: boolean;
+  instagramProfilePicUrl?: string;
   googleConnected: boolean;
   isProfileComplete: boolean;
 }
@@ -39,7 +58,11 @@ export interface SafeCreator extends SafeUserBase {
   instagramHandle: string;
   instagramFollowers: number;
   niche: string[];
-  profilePhotoUrl?: string;
+  instagramProfilePicUrl?: string;
+  googleConnected: boolean;
+  youtubeConnected: boolean;
+  instagramAuthenticityScore?: number;
+  instagramAuthenticityRisk?: string;
   isProfileComplete: boolean;
 }
 
@@ -57,4 +80,17 @@ export interface RefreshResult {
 
 export interface RegisterResult {
   message: string;
+}
+
+export interface SocialAuthCallbackResult {
+  status: SocialAuthStatus;
+  accessToken: string | null;
+  intermediateToken: string | null;
+  user: SafeUser | null;
+  instagramTokenExpiringSoon?: boolean;
+  instagramTokenExpired?: boolean;
+}
+
+export interface OAuthInitiateResult {
+  url: string;
 }

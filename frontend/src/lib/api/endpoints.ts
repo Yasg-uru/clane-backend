@@ -6,4 +6,9 @@ export const AUTH_ENDPOINTS = {
   login: "/auth/login",
   logout: "/auth/logout",
   refresh: "/auth/refresh",
+  initiateSocialAuth: (role: string, provider: string) => `/auth/${role}/${provider}`,
+  handleSocialCallback: (role: string, provider: string) => `/auth/${role}/${provider}/callback`,
+  connectSocialAccount: (role: string, provider: string) => `/auth/${role}/${provider}/connect`,
+  completeSocialProfile: (role: string) => `/auth/${role}/complete-profile`,
+  submitInstagramEmail: (role: string) => `/auth/${role}/instagram/submit-email`,
 } as const;

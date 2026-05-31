@@ -5,7 +5,11 @@ export class CreatorUser extends User {
   readonly instagramHandle: string;
   readonly instagramFollowers: number;
   readonly niche: string[];
-  readonly profilePhotoUrl?: string;
+  readonly instagramProfilePicUrl?: string;
+  readonly googleConnected: boolean;
+  readonly youtubeConnected: boolean;
+  readonly instagramAuthenticityScore?: number;
+  readonly instagramAuthenticityRisk?: string;
   readonly isProfileComplete: boolean;
 
   constructor(data: SafeCreator) {
@@ -13,7 +17,11 @@ export class CreatorUser extends User {
     this.instagramHandle = data.instagramHandle;
     this.instagramFollowers = data.instagramFollowers;
     this.niche = data.niche;
-    this.profilePhotoUrl = data.profilePhotoUrl;
+    this.instagramProfilePicUrl = data.instagramProfilePicUrl;
+    this.googleConnected = data.googleConnected;
+    this.youtubeConnected = data.youtubeConnected;
+    this.instagramAuthenticityScore = data.instagramAuthenticityScore;
+    this.instagramAuthenticityRisk = data.instagramAuthenticityRisk;
     this.isProfileComplete = data.isProfileComplete;
   }
 

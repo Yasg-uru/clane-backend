@@ -4,9 +4,9 @@
   "description": "CreatorLane backend API with role-based authentication for brands and creators.",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch src/bootstrap.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/bootstrap.js",
     "lint": "eslint src --ext .ts"
   },
   "keywords": [

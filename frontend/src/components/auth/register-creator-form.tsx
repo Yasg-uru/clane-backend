@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { useRegisterCreator } from "@/hooks/auth/useAuth";
+import { Separator } from "@/components/ui/separator";
+import { useRegisterCreator, useInitiateSocialAuth } from "@/hooks/auth/useAuth";
 import { creatorRegisterSchema } from "@/schemas/auth.schema";
+import { SocialProvider, UserRole } from "@/types";
 
 const NICHE_SUGGESTIONS = [
   "Fashion",
@@ -34,10 +36,30 @@ function FieldError({ errors }: FieldErrorProps): React.ReactElement | null {
   );
 }
 
+function InstagramIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <defs>
+        <radialGradient id="ig-reg-grad" cx="30%" cy="107%" r="150%">
+          <stop offset="0%" stopColor="#fdf497" />
+          <stop offset="5%" stopColor="#fdf497" />
+          <stop offset="45%" stopColor="#fd5949" />
+          <stop offset="60%" stopColor="#d6249f" />
+          <stop offset="90%" stopColor="#285AEB" />
+        </radialGradient>
+      </defs>
+      <rect width="24" height="24" rx="6" fill="url(#ig-reg-grad)" />
+      <circle cx="12" cy="12" r="4" stroke="white" strokeWidth="1.5" />
+      <circle cx="17.5" cy="6.5" r="1" fill="white" />
+    </svg>
+  );
+}
+
 export function RegisterCreatorForm(): React.ReactElement {
   const [showPassword, setShowPassword] = useState(false);
   const [nicheInput, setNicheInput] = useState("");
   const { mutate: registerCreator, isPending } = useRegisterCreator();
+  const { mutate: initiateSocialAuth, isPending: isSocialPending } = useInitiateSocialAuth();
 
   const form = useForm({
     defaultValues: {
@@ -62,6 +84,25 @@ export function RegisterCreatorForm(): React.ReactElement {
       }}
       className="space-y-4"
     >
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full gap-2"
+        disabled={isSocialPending}
+        onClick={() =>
+          initiateSocialAuth({ role: UserRole.CREATOR, provider: SocialProvider.INSTAGRAM })
+        }
+      >
+        {isSocialPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <InstagramIcon />}
+        Sign up with Instagram
+      </Button>
+
+      <div className="relative flex items-center gap-3">
+        <Separator className="flex-1" />
+        <span className="text-xs text-muted-foreground whitespace-nowrap">Or sign up with email</span>
+        <Separator className="flex-1" />
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <form.Field name="fullName">
           {(field) => (

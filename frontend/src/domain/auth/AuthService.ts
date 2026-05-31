@@ -1,10 +1,13 @@
-import { UserRole, type SafeUser } from "@/types";
+import { UserRole, type SafeUser, type SocialAuthCallbackResult } from "@/types";
 import type {
   BrandRegisterInput,
   CreatorRegisterInput,
   LoginInput,
   VerifyOtpInput,
   ResendOtpInput,
+  BrandCompleteProfileInput,
+  CreatorCompleteProfileInput,
+  SubmitInstagramEmailInput,
 } from "@/schemas/auth.schema";
 import { normalizeError } from "@/lib/api/error-handler";
 import type { IAuthRepository } from "./AuthRepository";
@@ -41,9 +44,13 @@ export class AuthService {
     }
   }
 
-  async verifyOtp(data: VerifyOtpInput): Promise<void> {
+  async verifyOtp(data: VerifyOtpInput): Promise<SocialAuthCallbackResult> {
     try {
-      await this.authRepository.verifyOtp(data);
+      const result = await this.authRepository.verifyOtp(data);
+      if (result.accessToken) {
+        this.tokenManager.set(result.accessToken);
+      }
+      return result;
     } catch (error) {
       throw normalizeError(error);
     }
@@ -82,6 +89,61 @@ export class AuthService {
       await this.authRepository.logout();
     } finally {
       this.tokenManager.clear();
+    }
+  }
+
+  async initiateSocialAuth(role: string, provider: string): Promise<string> {
+    try {
+      return await this.authRepository.initiateSocialAuth(role, provider);
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  async handleSocialCallback(
+    role: string,
+    provider: string,
+    code: string,
+    state: string,
+  ): Promise<SocialAuthCallbackResult> {
+    try {
+      return await this.authRepository.handleSocialCallback(role, provider, code, state);
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  async connectSocialAccount(role: string, provider: string): Promise<string> {
+    try {
+      return await this.authRepository.connectSocialAccount(role, provider);
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  async completeSocialProfile(
+    role: string,
+    data: BrandCompleteProfileInput | CreatorCompleteProfileInput,
+    intermediateToken: string,
+  ): Promise<User> {
+    try {
+      const result = await this.authRepository.completeSocialProfile(role, data, intermediateToken);
+      this.tokenManager.set(result.accessToken);
+      return this.buildUserEntity(result.user);
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  async submitInstagramEmail(
+    role: string,
+    data: SubmitInstagramEmailInput,
+    intermediateToken: string,
+  ): Promise<{ intermediateToken: string }> {
+    try {
+      return await this.authRepository.submitInstagramEmail(role, data, intermediateToken);
+    } catch (error) {
+      throw normalizeError(error);
     }
   }
 }

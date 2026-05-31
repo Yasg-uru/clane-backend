@@ -27,7 +27,9 @@ export const swaggerSpec = {
     contact: { name: "CreatorLane Team", email: "pronit556@gmail.com" },
   },
   servers: [
-    { url: "http://localhost:5000", description: "Local development" },
+    // Use runtime port so the Swagger UI Try-it uses the actual backend port
+    // `env` is imported lazily by bootstrap; require here to avoid top-level import ordering issues.
+    { url: `http://localhost:${process.env.PORT || 5000}`, description: "Local development" },
   ],
   components: {
     securitySchemes: {
