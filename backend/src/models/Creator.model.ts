@@ -1,8 +1,9 @@
 import { Schema, model, type HydratedDocument } from "mongoose";
-import type { AuthProvider } from "../core/types";
+import { UserRole, AuthProvider } from "../core/types";
+import type { GeoPoint } from "../core/types";
 
 export interface Creator {
-  role: "creator";
+  role: UserRole.Creator;
   fullName: string;
   email: string;
   passwordHash: string;
@@ -21,18 +22,27 @@ export interface Creator {
   instagramConnected: boolean;
   instagramVerified: boolean;
   instagramDataLastRefreshedAt?: Date;
+  location?: GeoPoint;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
 export type CreatorDocument = HydratedDocument<Creator>;
 
+const geoPointSchema = new Schema<GeoPoint>(
+  {
+    type: { type: String, enum: ["Point"], required: true },
+    coordinates: { type: [Number], required: true },
+  },
+  { _id: false },
+);
+
 const creatorSchema = new Schema<Creator>(
   {
     role: {
       type: String,
-      enum: ["creator"],
-      default: "creator",
+      enum: [UserRole.Creator],
+      default: UserRole.Creator,
       required: true,
       immutable: true,
     },
@@ -54,8 +64,8 @@ const creatorSchema = new Schema<Creator>(
     refreshToken: { type: String, default: null, select: false },
     authProvider: {
       type: String,
-      enum: ["email", "instagram", "google", "both"],
-      default: "email",
+      enum: Object.values(AuthProvider),
+      default: AuthProvider.Email,
       required: true,
     },
     instagramId: { type: String, sparse: true, unique: true },
@@ -66,6 +76,7 @@ const creatorSchema = new Schema<Creator>(
     instagramConnected: { type: Boolean, default: false },
     instagramVerified: { type: Boolean, default: false },
     instagramDataLastRefreshedAt: { type: Date },
+    location: { type: geoPointSchema },
   },
   {
     timestamps: true,
@@ -83,5 +94,7 @@ const creatorSchema = new Schema<Creator>(
     },
   },
 );
+
+creatorSchema.index({ location: "2dsphere" }, { sparse: true });
 
 export const CreatorModel = model<Creator>("Creator", creatorSchema);

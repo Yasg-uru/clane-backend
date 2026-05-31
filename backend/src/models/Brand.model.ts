@@ -1,8 +1,8 @@
 import { Schema, model, type HydratedDocument } from "mongoose";
-import type { AuthProvider } from "../core/types";
+import { UserRole, AuthProvider } from "../core/types";
 
 export interface Brand {
-  role: "brand";
+  role: UserRole.Brand;
   fullName: string;
   email: string;
   passwordHash: string;
@@ -28,8 +28,8 @@ const brandSchema = new Schema<Brand>(
   {
     role: {
       type: String,
-      enum: ["brand"],
-      default: "brand",
+      enum: [UserRole.Brand],
+      default: UserRole.Brand,
       required: true,
       immutable: true,
     },
@@ -44,8 +44,8 @@ const brandSchema = new Schema<Brand>(
     refreshToken: { type: String, default: null, select: false },
     authProvider: {
       type: String,
-      enum: ["email", "instagram", "google", "both"],
-      default: "email",
+      enum: Object.values(AuthProvider),
+      default: AuthProvider.Email,
       required: true,
     },
     googleId: { type: String, sparse: true, unique: true },

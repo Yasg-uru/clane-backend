@@ -48,6 +48,11 @@ export class RabbitMQConnection {
     return this.channel;
   }
 
+  async createChannel(): Promise<Channel> {
+    if (!this.connection) throw new Error("RabbitMQ not connected");
+    return this.connection.createChannel();
+  }
+
   getExchangeName(): string {
     return RABBITMQ_EXCHANGE_NAME;
   }

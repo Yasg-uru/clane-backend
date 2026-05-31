@@ -1,0 +1,172 @@
+import type { ConsumeMessage } from "amqplib";
+import type { RabbitMQConnection } from "../config/RabbitMQConnection";
+import type { NotificationRepository } from "../infrastructure/repositories/NotificationRepository";
+import { BID_EXCHANGE_NAME, BidEvent, BID_EVENT_BINDING } from "../config/config.constants";
+import { logger } from "../utils/logger";
+import { UserRole } from "../core/types";
+import { NotificationType } from "../models/Notification.model";
+import { BaseWorker } from "./BaseWorker";
+
+export class BidNotificationWorker extends BaseWorker {
+  protected readonly queueName = "creatorlane.bid.notifications";
+  protected readonly exchangeName = BID_EXCHANGE_NAME;
+  protected readonly routingKey = BID_EVENT_BINDING;
+  protected readonly prefetch = 20;
+
+  constructor(
+    private readonly notificationRepository: NotificationRepository,
+    rabbitMQ: RabbitMQConnection,
+  ) {
+    super(rabbitMQ);
+  }
+
+  protected async handleMessage(msg: ConsumeMessage): Promise<void> {
+    const channel = this.channel;
+    if (!channel) return;
+
+    logger.debug("BidNotificationWorker: received message", { routingKey: msg.fields.routingKey });
+
+    try {
+      const payload = JSON.parse(msg.content.toString()) as Record<string, unknown>;
+      await this.handleEvent(msg.fields.routingKey, payload);
+      channel.ack(msg);
+    } catch (err) {
+      logger.error("BidNotificationWorker: processing error", { err, routingKey: msg.fields.routingKey });
+      channel.nack(msg, false, true);
+    }
+  }
+
+  private async handleEvent(routingKey: string, payload: Record<string, unknown>): Promise<void> {
+    switch (routingKey) {
+      case BidEvent.Submitted:
+        await this.onBidSubmitted(payload);
+        break;
+      case BidEvent.Shortlisted:
+        await this.onBidShortlisted(payload);
+        break;
+      case BidEvent.Declined:
+        await this.onBidDeclined(payload);
+        break;
+      case BidEvent.Withdrawn:
+        await this.onBidWithdrawn(payload);
+        break;
+      case BidEvent.Accepted:
+        await this.onBidAccepted(payload);
+        break;
+      case BidEvent.BulkDeclined:
+        await this.onBidBulkDeclined(payload);
+        break;
+      default:
+        logger.warn("BidNotificationWorker: unknown routing key", { routingKey });
+    }
+  }
+
+  private async onBidSubmitted(payload: Record<string, unknown>): Promise<void> {
+    const brandId = String(payload["brandId"] ?? "");
+    const campaignId = String(payload["campaignId"] ?? "");
+    const bidId = String(payload["bidId"] ?? "");
+    const proposedAmount = Number(payload["proposedAmount"] ?? 0);
+    const campaignTitle = String(payload["campaignTitle"] ?? "your campaign");
+
+    await this.notificationRepository.createNotification({
+      recipientId: brandId,
+      recipientRole: UserRole.Brand,
+      type: NotificationType.BidSubmitted,
+      title: "New bid received",
+      body: `A creator submitted a bid of ₹${proposedAmount.toLocaleString("en-IN")} on ${campaignTitle}`,
+      meta: { bidId, campaignId },
+    });
+  }
+
+  private async onBidShortlisted(payload: Record<string, unknown>): Promise<void> {
+    const creatorId = String(payload["creatorId"] ?? "");
+    const campaignId = String(payload["campaignId"] ?? "");
+    const bidId = String(payload["bidId"] ?? "");
+
+    await this.notificationRepository.createNotification({
+      recipientId: creatorId,
+      recipientRole: UserRole.Creator,
+      type: NotificationType.BidShortlisted,
+      title: "Your bid has been shortlisted",
+      body: "A brand has shortlisted your bid for further review",
+      meta: { bidId, campaignId },
+    });
+  }
+
+  private async onBidDeclined(payload: Record<string, unknown>): Promise<void> {
+    const creatorId = String(payload["creatorId"] ?? "");
+    const campaignId = String(payload["campaignId"] ?? "");
+    const bidId = String(payload["bidId"] ?? "");
+
+    await this.notificationRepository.createNotification({
+      recipientId: creatorId,
+      recipientRole: UserRole.Creator,
+      type: NotificationType.BidDeclined,
+      title: "Your bid was not selected",
+      body: "The brand has reviewed your bid and decided not to proceed at this time",
+      meta: { bidId, campaignId },
+    });
+  }
+
+  private async onBidWithdrawn(payload: Record<string, unknown>): Promise<void> {
+    const brandId = String(payload["brandId"] ?? "");
+    const campaignId = String(payload["campaignId"] ?? "");
+    const bidId = String(payload["bidId"] ?? "");
+
+    await this.notificationRepository.createNotification({
+      recipientId: brandId,
+      recipientRole: UserRole.Brand,
+      type: NotificationType.BidWithdrawn,
+      title: "A creator withdrew their bid",
+      body: "A creator has withdrawn their bid from your campaign",
+      meta: { bidId, campaignId },
+    });
+  }
+
+  private async onBidAccepted(payload: Record<string, unknown>): Promise<void> {
+    const creatorId = String(payload["creatorId"] ?? "");
+    const campaignId = String(payload["campaignId"] ?? "");
+    const bidId = String(payload["bidId"] ?? "");
+    const agreedAmount = Number(payload["agreedAmount"] ?? 0);
+
+    await this.notificationRepository.createNotification({
+      recipientId: creatorId,
+      recipientRole: UserRole.Creator,
+      type: NotificationType.BidAccepted,
+      title: "Congratulations! Your bid was accepted",
+      body: `Your bid of ₹${agreedAmount.toLocaleString("en-IN")} has been accepted. Get ready to collaborate!`,
+      meta: { bidId, campaignId, agreedAmount },
+    });
+  }
+
+  private async onBidBulkDeclined(payload: Record<string, unknown>): Promise<void> {
+    const campaignId = String(payload["campaignId"] ?? "");
+    const rawDeclinedBids = payload["declinedBids"];
+
+    if (!Array.isArray(rawDeclinedBids)) {
+      logger.warn("BidNotificationWorker: invalid declinedBids in bulk_declined event", { campaignId });
+      return;
+    }
+
+    const notifications = rawDeclinedBids
+      .filter(
+        (item): item is { bidId: string; creatorId: string } =>
+          typeof item === "object" &&
+          item !== null &&
+          typeof (item as Record<string, unknown>)["bidId"] === "string" &&
+          typeof (item as Record<string, unknown>)["creatorId"] === "string",
+      )
+      .map((item) =>
+        this.notificationRepository.createNotification({
+          recipientId: item.creatorId,
+          recipientRole: UserRole.Creator,
+          type: NotificationType.BidDeclined,
+          title: "Your bid was not selected",
+          body: "The campaign has selected another creator. Thank you for your bid!",
+          meta: { bidId: item.bidId, campaignId, autoDeclined: true },
+        }),
+      );
+
+    await Promise.all(notifications);
+  }
+}

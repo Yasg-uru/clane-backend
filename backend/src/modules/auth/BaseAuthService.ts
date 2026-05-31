@@ -8,8 +8,10 @@ import { ForbiddenError } from "../../core/errors/ForbiddenError";
 import { NotFoundError } from "../../core/errors/NotFoundError";
 import { ConflictError } from "../../core/errors/ConflictError";
 import { RateLimitError } from "../../core/errors/RateLimitError";
-import type { AuthDocument, JwtPayload, SafeBrand, SafeCreator, SafeUser, UserRole } from "../../core/types";
+import { UserRole } from "../../core/types";
+import type { AuthDocument, JwtPayload } from "../../core/types";
 import type { AuthResult, RefreshResult } from "./auth.types";
+import { AuthMapper } from "./AuthMapper";
 import type { LoginInput, ResendOtpInput, VerifyOtpInput } from "./auth.validator";
 
 export abstract class BaseAuthService {
@@ -146,50 +148,7 @@ export abstract class BaseAuthService {
 
     await this.updateUserRefreshToken(user._id.toString(), hashedToken);
 
-    return { accessToken, refreshToken, user: BaseAuthService.toSafeUser(user) };
-  }
-
-  protected static toSafeUser(user: AuthDocument): SafeUser {
-    const toIso = (value: Date | undefined): string | undefined =>
-      value ? value.toISOString() : undefined;
-
-    const base = {
-      id: user._id.toString(),
-      fullName: user.fullName,
-      email: user.email,
-      city: user.city,
-      isEmailVerified: user.isEmailVerified,
-      authProvider: user.authProvider,
-      createdAt: toIso(user.createdAt),
-      updatedAt: toIso(user.updatedAt),
-    };
-
-    if (user.role === "brand") {
-      const safeBrand: SafeBrand = {
-        ...base,
-        role: "brand",
-        brandName: user.brandName,
-        brandType: user.brandType,
-        instagramHandle: user.instagramHandle,
-        profilePhotoUrl: user.profilePhotoUrl,
-        googleConnected: user.googleConnected,
-        isProfileComplete: user.isProfileComplete,
-      };
-      return safeBrand;
-    }
-
-    const safeCreator: SafeCreator = {
-      ...base,
-      role: "creator",
-      instagramHandle: user.instagramHandle,
-      instagramFollowers: user.instagramFollowers,
-      niche: user.niche,
-      instagramProfilePicUrl: user.instagramProfilePicUrl,
-      instagramConnected: user.instagramConnected,
-      instagramVerified: user.instagramVerified,
-      instagramDataLastRefreshedAt: toIso(user.instagramDataLastRefreshedAt),
-    };
-    return safeCreator;
+    return { accessToken, refreshToken, user: AuthMapper.toSafeUser(user) };
   }
 
 }

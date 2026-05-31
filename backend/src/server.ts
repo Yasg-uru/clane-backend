@@ -11,10 +11,13 @@ import { TokenService } from "./infrastructure/services/TokenService";
 import { OtpService } from "./infrastructure/services/OtpService";
 import { EmailService } from "./infrastructure/services/EmailService";
 import { EventPublisher } from "./infrastructure/services/EventPublisher";
+import { CacheService } from "./infrastructure/services/CacheService";
 
 // ─── Repositories ─────────────────────────────────────────────────────────────
 import { BrandRepository } from "./infrastructure/repositories/BrandRepository";
 import { CreatorRepository } from "./infrastructure/repositories/CreatorRepository";
+import { CampaignRepository } from "./infrastructure/repositories/CampaignRepository";
+import { CreatorCampaignMatchRepository } from "./infrastructure/repositories/CreatorCampaignMatchRepository";
 
 // ─── Middleware classes ───────────────────────────────────────────────────────
 import { AuthMiddleware } from "./infrastructure/middleware/AuthMiddleware";
@@ -29,11 +32,61 @@ import { BrandAuthService } from "./modules/auth/BrandAuthService";
 import { CreatorAuthService } from "./modules/auth/CreatorAuthService";
 import { AuthController } from "./modules/auth/AuthController";
 
+// ─── Campaign module ──────────────────────────────────────────────────────────
+import { NicheScorer } from "./modules/campaign/scoring/NicheScorer";
+import { PlatformScorer } from "./modules/campaign/scoring/PlatformScorer";
+import { FollowerScorer } from "./modules/campaign/scoring/FollowerScorer";
+import { LocationScorer } from "./modules/campaign/scoring/LocationScorer";
+import { ProximityScorer } from "./modules/campaign/scoring/ProximityScorer";
+import { RequirementsScorer } from "./modules/campaign/scoring/RequirementsScorer";
+import { MatchScorer } from "./modules/campaign/scoring/MatchScorer";
+import { CampaignCacheManager } from "./modules/campaign/CampaignCacheManager";
+import { CampaignService } from "./modules/campaign/CampaignService";
+import { CampaignController } from "./modules/campaign/CampaignController";
+
+// ─── Bid module ───────────────────────────────────────────────────────────────
+import { LockService } from "./infrastructure/services/LockService";
+import { BidRepository } from "./infrastructure/repositories/BidRepository";
+import { NotificationRepository } from "./infrastructure/repositories/NotificationRepository";
+import { BidCacheManager } from "./modules/bid/BidCacheManager";
+import { BidService } from "./modules/bid/BidService";
+import { BidController } from "./modules/bid/BidController";
+
+// ─── Escrow module ────────────────────────────────────────────────────────────
+import { EscrowRepository } from "./infrastructure/repositories/EscrowRepository";
+import { CollabRoomRepository } from "./infrastructure/repositories/CollabRoomRepository";
+import { RazorpayService } from "./infrastructure/services/RazorpayService";
+import { EscrowService } from "./modules/escrow/EscrowService";
+import { EscrowController } from "./modules/escrow/EscrowController";
+import { CollabController } from "./modules/collab/CollabController";
+
+// ─── Workers & jobs ───────────────────────────────────────────────────────────
+import { MatchScoreWorker } from "./workers/MatchScoreWorker";
+import { CampaignCleanupWorker } from "./workers/CampaignCleanupWorker";
+import { ViewCountWorker } from "./workers/ViewCountWorker";
+import { CampaignExpiryJob } from "./jobs/CampaignExpiryJob";
+import { BidNotificationWorker } from "./workers/BidNotificationWorker";
+import { EscrowInitWorker } from "./workers/EscrowInitWorker";
+import { EscrowFundedWorker } from "./workers/EscrowFundedWorker";
+import { EscrowPaymentTimeoutJob } from "./jobs/EscrowPaymentTimeoutJob";
+import { EscrowAutoRefundJob } from "./jobs/EscrowAutoRefundJob";
+
 export class Server {
   private httpServer!: http.Server;
   private isShuttingDown = false;
 
-  constructor(private readonly app: App) {}
+  constructor(
+    private readonly app: App,
+    private readonly matchScoreWorker: MatchScoreWorker,
+    private readonly campaignCleanupWorker: CampaignCleanupWorker,
+    private readonly viewCountWorker: ViewCountWorker,
+    private readonly campaignExpiryJob: CampaignExpiryJob,
+    private readonly bidNotificationWorker: BidNotificationWorker,
+    private readonly escrowInitWorker: EscrowInitWorker,
+    private readonly escrowFundedWorker: EscrowFundedWorker,
+    private readonly escrowPaymentTimeoutJob: EscrowPaymentTimeoutJob,
+    private readonly escrowAutoRefundJob: EscrowAutoRefundJob,
+  ) {}
 
   async start(): Promise<void> {
     const db = DatabaseConnection.getInstance();
@@ -43,6 +96,19 @@ export class Server {
     await db.connect();
     await redis.connect();
     await rabbitMQ.connect();
+
+    await Promise.all([
+      this.matchScoreWorker.start(),
+      this.campaignCleanupWorker.start(),
+      this.viewCountWorker.start(),
+      this.bidNotificationWorker.start(),
+      this.escrowInitWorker.start(),
+      this.escrowFundedWorker.start(),
+    ]);
+
+    this.campaignExpiryJob.start();
+    this.escrowPaymentTimeoutJob.start();
+    this.escrowAutoRefundJob.start();
 
     this.httpServer = this.app.getExpressApp().listen(env.PORT, this.onListening);
     this.registerShutdownHandlers();
@@ -86,6 +152,19 @@ export class Server {
     forceExit.unref();
 
     try {
+      this.campaignExpiryJob.stop();
+      this.escrowPaymentTimeoutJob.stop();
+      this.escrowAutoRefundJob.stop();
+
+      await Promise.all([
+        this.matchScoreWorker.stop(),
+        this.campaignCleanupWorker.stop(),
+        this.viewCountWorker.stop(),
+        this.bidNotificationWorker.stop(),
+        this.escrowInitWorker.stop(),
+        this.escrowFundedWorker.stop(),
+      ]);
+
       await this.closeHttpServer();
 
       const db = DatabaseConnection.getInstance();
@@ -127,9 +206,12 @@ const tokenService = new TokenService(redis);
 const otpService = new OtpService(redis);
 const emailService = new EmailService();
 const eventPublisher = new EventPublisher(rabbitMQ);
+const cacheService = new CacheService(redis);
 
 const brandRepository = new BrandRepository();
 const creatorRepository = new CreatorRepository();
+const campaignRepository = new CampaignRepository();
+const creatorCampaignMatchRepository = new CreatorCampaignMatchRepository();
 
 const emailPasswordStrategy = new EmailPasswordStrategy();
 
@@ -151,6 +233,27 @@ const creatorAuthService = new CreatorAuthService(
   emailPasswordStrategy,
 );
 
+const matchScorer = new MatchScorer(
+  new NicheScorer(),
+  new PlatformScorer(),
+  new FollowerScorer(),
+  new LocationScorer(),
+  new ProximityScorer(),
+  new RequirementsScorer(),
+);
+
+const campaignCacheManager = new CampaignCacheManager(cacheService);
+
+const campaignService = new CampaignService(
+  campaignRepository,
+  creatorCampaignMatchRepository,
+  brandRepository,
+  creatorRepository,
+  eventPublisher,
+  campaignCacheManager,
+  matchScorer,
+);
+
 const authMiddleware = new AuthMiddleware(tokenService);
 const rateLimiter = new RateLimiterMiddleware(redis);
 const errorHandler = new ErrorHandlerMiddleware();
@@ -158,9 +261,87 @@ const notFound = new NotFoundMiddleware();
 const requestLogger = new RequestLoggerMiddleware();
 
 const authController = new AuthController(brandAuthService, creatorAuthService, tokenService);
+const campaignController = new CampaignController(campaignService);
 
-const app = new App(authController, authMiddleware, rateLimiter, errorHandler, notFound, requestLogger);
-const server = new Server(app);
+const lockService = new LockService(redis);
+
+const bidRepository = new BidRepository();
+const notificationRepository = new NotificationRepository();
+
+const bidCacheManager = new BidCacheManager(cacheService);
+
+const bidService = new BidService(
+  bidRepository,
+  campaignRepository,
+  brandRepository,
+  creatorRepository,
+  creatorCampaignMatchRepository,
+  eventPublisher,
+  bidCacheManager,
+  lockService,
+);
+
+const bidController = new BidController(bidService, notificationRepository);
+
+const razorpayService = new RazorpayService({
+  keyId: env.RAZORPAY_KEY_ID,
+  keySecret: env.RAZORPAY_KEY_SECRET,
+  webhookSecret: env.RAZORPAY_WEBHOOK_SECRET,
+  accountNumber: env.RAZORPAY_ACCOUNT_NUMBER,
+});
+const escrowRepository = new EscrowRepository();
+const collabRoomRepository = new CollabRoomRepository();
+
+const escrowService = new EscrowService(
+  escrowRepository,
+  collabRoomRepository,
+  bidRepository,
+  campaignRepository,
+  razorpayService,
+  eventPublisher,
+  notificationRepository,
+  lockService,
+  cacheService,
+);
+
+const escrowController = new EscrowController(escrowService);
+const collabController = new CollabController(collabRoomRepository);
+
+const matchScoreWorker = new MatchScoreWorker(creatorCampaignMatchRepository, creatorRepository, rabbitMQ, matchScorer);
+const campaignCleanupWorker = new CampaignCleanupWorker(creatorCampaignMatchRepository, rabbitMQ);
+const viewCountWorker = new ViewCountWorker(campaignRepository, rabbitMQ);
+const campaignExpiryJob = new CampaignExpiryJob(campaignService);
+const bidNotificationWorker = new BidNotificationWorker(notificationRepository, rabbitMQ);
+const escrowInitWorker = new EscrowInitWorker(rabbitMQ, escrowService);
+const escrowFundedWorker = new EscrowFundedWorker(escrowService, notificationRepository, rabbitMQ);
+const escrowPaymentTimeoutJob = new EscrowPaymentTimeoutJob(escrowRepository, escrowService);
+const escrowAutoRefundJob = new EscrowAutoRefundJob(escrowRepository, escrowService);
+
+const app = new App(
+  authController,
+  campaignController,
+  bidController,
+  escrowController,
+  collabController,
+  authMiddleware,
+  rateLimiter,
+  errorHandler,
+  notFound,
+  requestLogger,
+);
+
+const server = new Server(
+  app,
+  matchScoreWorker,
+  campaignCleanupWorker,
+  viewCountWorker,
+  campaignExpiryJob,
+  bidNotificationWorker,
+  escrowInitWorker,
+  escrowFundedWorker,
+  escrowPaymentTimeoutJob,
+  escrowAutoRefundJob,
+);
 
 void server.start().catch((error: unknown) => {
   logger.error("Failed to start server", { error });
