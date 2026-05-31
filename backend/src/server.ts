@@ -5,71 +5,19 @@ import { RabbitMQConnection } from "./config/RabbitMQConnection";
 import { env } from "./config/env";
 import { logger } from "./utils/logger";
 import { App } from "./app";
-
-// ─── Infrastructure services ─────────────────────────────────────────────────
-import { TokenService } from "./infrastructure/services/TokenService";
-import { OtpService } from "./infrastructure/services/OtpService";
-import { EmailService } from "./infrastructure/services/EmailService";
-import { EventPublisher } from "./infrastructure/services/EventPublisher";
-import { CacheService } from "./infrastructure/services/CacheService";
-
-// ─── Repositories ─────────────────────────────────────────────────────────────
-import { BrandRepository } from "./infrastructure/repositories/BrandRepository";
-import { CreatorRepository } from "./infrastructure/repositories/CreatorRepository";
-import { CampaignRepository } from "./infrastructure/repositories/CampaignRepository";
-import { CreatorCampaignMatchRepository } from "./infrastructure/repositories/CreatorCampaignMatchRepository";
-
-// ─── Middleware classes ───────────────────────────────────────────────────────
-import { AuthMiddleware } from "./infrastructure/middleware/AuthMiddleware";
-import { RateLimiterMiddleware } from "./infrastructure/middleware/RateLimiterMiddleware";
-import { ErrorHandlerMiddleware } from "./infrastructure/middleware/ErrorHandlerMiddleware";
-import { NotFoundMiddleware } from "./infrastructure/middleware/NotFoundMiddleware";
-import { RequestLoggerMiddleware } from "./infrastructure/middleware/RequestLoggerMiddleware";
-
-// ─── Auth module ──────────────────────────────────────────────────────────────
-import { EmailPasswordStrategy } from "./modules/auth/strategies/EmailPasswordStrategy";
-import { BrandAuthService } from "./modules/auth/BrandAuthService";
-import { CreatorAuthService } from "./modules/auth/CreatorAuthService";
-import { AuthController } from "./modules/auth/AuthController";
-
-// ─── Campaign module ──────────────────────────────────────────────────────────
-import { NicheScorer } from "./modules/campaign/scoring/NicheScorer";
-import { PlatformScorer } from "./modules/campaign/scoring/PlatformScorer";
-import { FollowerScorer } from "./modules/campaign/scoring/FollowerScorer";
-import { LocationScorer } from "./modules/campaign/scoring/LocationScorer";
-import { ProximityScorer } from "./modules/campaign/scoring/ProximityScorer";
-import { RequirementsScorer } from "./modules/campaign/scoring/RequirementsScorer";
-import { MatchScorer } from "./modules/campaign/scoring/MatchScorer";
-import { CampaignCacheManager } from "./modules/campaign/CampaignCacheManager";
-import { CampaignService } from "./modules/campaign/CampaignService";
-import { CampaignController } from "./modules/campaign/CampaignController";
-
-// ─── Bid module ───────────────────────────────────────────────────────────────
-import { LockService } from "./infrastructure/services/LockService";
-import { BidRepository } from "./infrastructure/repositories/BidRepository";
-import { NotificationRepository } from "./infrastructure/repositories/NotificationRepository";
-import { BidCacheManager } from "./modules/bid/BidCacheManager";
-import { BidService } from "./modules/bid/BidService";
-import { BidController } from "./modules/bid/BidController";
-
-// ─── Escrow module ────────────────────────────────────────────────────────────
-import { EscrowRepository } from "./infrastructure/repositories/EscrowRepository";
-import { CollabRoomRepository } from "./infrastructure/repositories/CollabRoomRepository";
-import { RazorpayService } from "./infrastructure/services/RazorpayService";
-import { EscrowService } from "./modules/escrow/EscrowService";
-import { EscrowController } from "./modules/escrow/EscrowController";
-import { CollabController } from "./modules/collab/CollabController";
-
-// ─── Workers & jobs ───────────────────────────────────────────────────────────
-import { MatchScoreWorker } from "./workers/MatchScoreWorker";
-import { CampaignCleanupWorker } from "./workers/CampaignCleanupWorker";
-import { ViewCountWorker } from "./workers/ViewCountWorker";
-import { CampaignExpiryJob } from "./jobs/CampaignExpiryJob";
-import { BidNotificationWorker } from "./workers/BidNotificationWorker";
-import { EscrowInitWorker } from "./workers/EscrowInitWorker";
-import { EscrowFundedWorker } from "./workers/EscrowFundedWorker";
-import { EscrowPaymentTimeoutJob } from "./jobs/EscrowPaymentTimeoutJob";
-import { EscrowAutoRefundJob } from "./jobs/EscrowAutoRefundJob";
+import type { MatchScoreWorker } from "./workers/MatchScoreWorker";
+import type { CampaignCleanupWorker } from "./workers/CampaignCleanupWorker";
+import type { ViewCountWorker } from "./workers/ViewCountWorker";
+import type { BidNotificationWorker } from "./workers/BidNotificationWorker";
+import type { EscrowInitWorker } from "./workers/EscrowInitWorker";
+import type { EscrowFundedWorker } from "./workers/EscrowFundedWorker";
+import type { InstagramDataWorker } from "./workers/InstagramDataWorker";
+import type { YoutubeDataWorker } from "./workers/YoutubeDataWorker";
+import type { AuthenticityScoreWorker } from "./workers/AuthenticityScoreWorker";
+import type { CampaignExpiryJob } from "./jobs/CampaignExpiryJob";
+import type { EscrowPaymentTimeoutJob } from "./jobs/EscrowPaymentTimeoutJob";
+import type { EscrowAutoRefundJob } from "./jobs/EscrowAutoRefundJob";
+import type { SocialDataRefreshJob } from "./jobs/SocialDataRefreshJob";
 
 export class Server {
   private httpServer!: http.Server;
@@ -86,6 +34,10 @@ export class Server {
     private readonly escrowFundedWorker: EscrowFundedWorker,
     private readonly escrowPaymentTimeoutJob: EscrowPaymentTimeoutJob,
     private readonly escrowAutoRefundJob: EscrowAutoRefundJob,
+    private readonly instagramDataWorker: InstagramDataWorker,
+    private readonly youtubeDataWorker: YoutubeDataWorker,
+    private readonly authenticityScoreWorker: AuthenticityScoreWorker,
+    private readonly socialDataRefreshJob: SocialDataRefreshJob,
   ) {}
 
   async start(): Promise<void> {
@@ -104,11 +56,15 @@ export class Server {
       this.bidNotificationWorker.start(),
       this.escrowInitWorker.start(),
       this.escrowFundedWorker.start(),
+      this.instagramDataWorker.start(),
+      this.youtubeDataWorker.start(),
+      this.authenticityScoreWorker.start(),
     ]);
 
     this.campaignExpiryJob.start();
     this.escrowPaymentTimeoutJob.start();
     this.escrowAutoRefundJob.start();
+    this.socialDataRefreshJob.start();
 
     this.httpServer = this.app.getExpressApp().listen(env.PORT, this.onListening);
     this.registerShutdownHandlers();
@@ -155,6 +111,7 @@ export class Server {
       this.campaignExpiryJob.stop();
       this.escrowPaymentTimeoutJob.stop();
       this.escrowAutoRefundJob.stop();
+      this.socialDataRefreshJob.stop();
 
       await Promise.all([
         this.matchScoreWorker.stop(),
@@ -163,6 +120,9 @@ export class Server {
         this.bidNotificationWorker.stop(),
         this.escrowInitWorker.stop(),
         this.escrowFundedWorker.stop(),
+        this.instagramDataWorker.stop(),
+        this.youtubeDataWorker.stop(),
+        this.authenticityScoreWorker.stop(),
       ]);
 
       await this.closeHttpServer();
@@ -197,153 +157,3 @@ export class Server {
   }
 }
 
-// ─── Composition Root ─────────────────────────────────────────────────────────
-
-const redis = RedisClient.getInstance();
-const rabbitMQ = RabbitMQConnection.getInstance();
-
-const tokenService = new TokenService(redis);
-const otpService = new OtpService(redis);
-const emailService = new EmailService();
-const eventPublisher = new EventPublisher(rabbitMQ);
-const cacheService = new CacheService(redis);
-
-const brandRepository = new BrandRepository();
-const creatorRepository = new CreatorRepository();
-const campaignRepository = new CampaignRepository();
-const creatorCampaignMatchRepository = new CreatorCampaignMatchRepository();
-
-const emailPasswordStrategy = new EmailPasswordStrategy();
-
-const brandAuthService = new BrandAuthService(
-  brandRepository,
-  tokenService,
-  otpService,
-  emailService,
-  eventPublisher,
-  emailPasswordStrategy,
-);
-
-const creatorAuthService = new CreatorAuthService(
-  creatorRepository,
-  tokenService,
-  otpService,
-  emailService,
-  eventPublisher,
-  emailPasswordStrategy,
-);
-
-const matchScorer = new MatchScorer(
-  new NicheScorer(),
-  new PlatformScorer(),
-  new FollowerScorer(),
-  new LocationScorer(),
-  new ProximityScorer(),
-  new RequirementsScorer(),
-);
-
-const campaignCacheManager = new CampaignCacheManager(cacheService);
-
-const campaignService = new CampaignService(
-  campaignRepository,
-  creatorCampaignMatchRepository,
-  brandRepository,
-  creatorRepository,
-  eventPublisher,
-  campaignCacheManager,
-  matchScorer,
-);
-
-const authMiddleware = new AuthMiddleware(tokenService);
-const rateLimiter = new RateLimiterMiddleware(redis);
-const errorHandler = new ErrorHandlerMiddleware();
-const notFound = new NotFoundMiddleware();
-const requestLogger = new RequestLoggerMiddleware();
-
-const authController = new AuthController(brandAuthService, creatorAuthService, tokenService);
-const campaignController = new CampaignController(campaignService);
-
-const lockService = new LockService(redis);
-
-const bidRepository = new BidRepository();
-const notificationRepository = new NotificationRepository();
-
-const bidCacheManager = new BidCacheManager(cacheService);
-
-const bidService = new BidService(
-  bidRepository,
-  campaignRepository,
-  brandRepository,
-  creatorRepository,
-  creatorCampaignMatchRepository,
-  eventPublisher,
-  bidCacheManager,
-  lockService,
-);
-
-const bidController = new BidController(bidService, notificationRepository);
-
-const razorpayService = new RazorpayService({
-  keyId: env.RAZORPAY_KEY_ID,
-  keySecret: env.RAZORPAY_KEY_SECRET,
-  webhookSecret: env.RAZORPAY_WEBHOOK_SECRET,
-  accountNumber: env.RAZORPAY_ACCOUNT_NUMBER,
-});
-const escrowRepository = new EscrowRepository();
-const collabRoomRepository = new CollabRoomRepository();
-
-const escrowService = new EscrowService(
-  escrowRepository,
-  collabRoomRepository,
-  bidRepository,
-  campaignRepository,
-  razorpayService,
-  eventPublisher,
-  notificationRepository,
-  lockService,
-  cacheService,
-);
-
-const escrowController = new EscrowController(escrowService);
-const collabController = new CollabController(collabRoomRepository);
-
-const matchScoreWorker = new MatchScoreWorker(creatorCampaignMatchRepository, creatorRepository, rabbitMQ, matchScorer);
-const campaignCleanupWorker = new CampaignCleanupWorker(creatorCampaignMatchRepository, rabbitMQ);
-const viewCountWorker = new ViewCountWorker(campaignRepository, rabbitMQ);
-const campaignExpiryJob = new CampaignExpiryJob(campaignService);
-const bidNotificationWorker = new BidNotificationWorker(notificationRepository, rabbitMQ);
-const escrowInitWorker = new EscrowInitWorker(rabbitMQ, escrowService);
-const escrowFundedWorker = new EscrowFundedWorker(escrowService, notificationRepository, rabbitMQ);
-const escrowPaymentTimeoutJob = new EscrowPaymentTimeoutJob(escrowRepository, escrowService);
-const escrowAutoRefundJob = new EscrowAutoRefundJob(escrowRepository, escrowService);
-
-const app = new App(
-  authController,
-  campaignController,
-  bidController,
-  escrowController,
-  collabController,
-  authMiddleware,
-  rateLimiter,
-  errorHandler,
-  notFound,
-  requestLogger,
-);
-
-const server = new Server(
-  app,
-  matchScoreWorker,
-  campaignCleanupWorker,
-  viewCountWorker,
-  campaignExpiryJob,
-  bidNotificationWorker,
-  escrowInitWorker,
-  escrowFundedWorker,
-  escrowPaymentTimeoutJob,
-  escrowAutoRefundJob,
-);
-
-void server.start().catch((error: unknown) => {
-  logger.error("Failed to start server", { error });
-  process.exit(1);
-});

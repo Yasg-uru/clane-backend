@@ -1,33 +1,30 @@
 import type { ClientSession, FilterQuery } from "mongoose";
-import { CampaignModel, CampaignStatus, type CampaignDocument } from "../../models/Campaign.model";
-import type { PaginatedResult } from "../../core/types";
+import { CampaignModel, CampaignStatus, type CampaignDocument, type ICampaign } from "../../models/Campaign.model";
+import type { PaginatedResult, WriteData } from "../../core/types";
+import type {
+  ICampaignRepository,
+  CampaignListFilters,
+  BrowseFilters,
+} from "../../core/interfaces/ICampaignRepository";
 import { BaseRepository } from "./BaseRepository";
 
-export interface CampaignListFilters {
-  status?: CampaignStatus;
-  page?: number;
-  limit?: number;
-}
+export type { CampaignListFilters, BrowseFilters };
 
-export interface BrowseFilters {
-  platform?: string;
-  niche?: string[];
-  budgetMin?: number;
-  budgetMax?: number;
-}
-
-export class CampaignRepository extends BaseRepository<CampaignDocument> {
+export class CampaignRepository
+  extends BaseRepository<CampaignDocument, ICampaign>
+  implements ICampaignRepository
+{
   async findById(id: string): Promise<CampaignDocument | null> {
     return CampaignModel.findById(id).exec();
   }
 
-  async create(data: Partial<Record<string, unknown>>): Promise<CampaignDocument> {
+  async create(data: WriteData<ICampaign>): Promise<CampaignDocument> {
     return CampaignModel.create(data);
   }
 
   async updateById(
     id: string,
-    data: Partial<Record<string, unknown>>,
+    data: WriteData<ICampaign>,
   ): Promise<CampaignDocument | null> {
     return CampaignModel.findByIdAndUpdate(id, data, { new: true }).exec();
   }
@@ -95,7 +92,7 @@ export class CampaignRepository extends BaseRepository<CampaignDocument> {
   async updateStatus(
     campaignId: string,
     status: CampaignStatus,
-    meta?: Partial<Record<string, unknown>>,
+    meta?: WriteData<ICampaign>,
     session?: ClientSession,
   ): Promise<CampaignDocument | null> {
     return CampaignModel.findByIdAndUpdate(

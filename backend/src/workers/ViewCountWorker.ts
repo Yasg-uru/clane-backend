@@ -1,6 +1,6 @@
 import type { ConsumeMessage } from "amqplib";
 import type { RabbitMQConnection } from "../config/RabbitMQConnection";
-import type { CampaignRepository } from "../infrastructure/repositories/CampaignRepository";
+import type { ICampaignRepository } from "../core/interfaces/ICampaignRepository";
 import { CAMPAIGN_EXCHANGE_NAME, CampaignEvent } from "../config/config.constants";
 import { logger } from "../utils/logger";
 import { BaseWorker } from "./BaseWorker";
@@ -12,7 +12,7 @@ export class ViewCountWorker extends BaseWorker {
   protected readonly prefetch = 50;
 
   constructor(
-    private readonly campaignRepository: CampaignRepository,
+    private readonly campaignRepository: ICampaignRepository,
     rabbitMQ: RabbitMQConnection,
   ) {
     super(rabbitMQ);

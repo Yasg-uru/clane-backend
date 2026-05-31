@@ -13,6 +13,10 @@ else
 end
 `;
 
+// LockService owns the `lock:` Redis namespace. Callers pass a logical key
+// (e.g. "bid:accept:<id>") and never spell out the prefix themselves.
+const LOCK_KEY_PREFIX = "lock:";
+
 export class LockService implements ILockService {
   constructor(private readonly redisClient: RedisClient) {}
 
@@ -22,7 +26,7 @@ export class LockService implements ILockService {
 
     const result = await this.redisClient.sendCommand(
       "SET",
-      key,
+      this.namespaced(key),
       token,
       "NX",
       "PX",
@@ -35,9 +39,13 @@ export class LockService implements ILockService {
 
   async release(key: string, lockToken: string): Promise<void> {
     try {
-      await this.redisClient.sendCommand("EVAL", RELEASE_SCRIPT, "1", key, lockToken);
+      await this.redisClient.sendCommand("EVAL", RELEASE_SCRIPT, "1", this.namespaced(key), lockToken);
     } catch (err) {
       logger.warn("LockService: failed to release lock", { key, err });
     }
+  }
+
+  private namespaced(key: string): string {
+    return `${LOCK_KEY_PREFIX}${key}`;
   }
 }

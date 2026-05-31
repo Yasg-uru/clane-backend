@@ -13,6 +13,7 @@ export class AuthMapper {
       city: user.city,
       isEmailVerified: user.isEmailVerified,
       authProvider: user.authProvider,
+      authProviders: user.authProviders ?? [],
       createdAt: toIso(user.createdAt),
       updatedAt: toIso(user.updatedAt),
     };
@@ -24,6 +25,9 @@ export class AuthMapper {
         brandName: user.brandName,
         brandType: user.brandType,
         instagramHandle: user.instagramHandle,
+        instagramFollowers: user.instagramFollowers,
+        instagramBio: user.instagramBio,
+        instagramConnected: user.instagramConnected,
         profilePhotoUrl: user.profilePhotoUrl,
         googleConnected: user.googleConnected,
         isProfileComplete: user.isProfileComplete,
@@ -41,6 +45,15 @@ export class AuthMapper {
       instagramConnected: user.instagramConnected,
       instagramVerified: user.instagramVerified,
       instagramDataLastRefreshedAt: toIso(user.instagramDataLastRefreshedAt),
+      instagramAuthenticityScore: user.instagramAuthenticityScore,
+      instagramAuthenticityRisk: user.instagramAuthenticityRisk,
+      youtubeConnected: user.youtubeConnected ?? false,
+      youtubeChannelId: user.youtubeChannelId,
+      youtubeSubscriberCount: user.youtubeSubscriberCount,
+      youtubeAuthenticityScore: user.youtubeAuthenticityScore,
+      youtubeAuthenticityRisk: user.youtubeAuthenticityRisk,
+      googleConnected: user.googleConnected ?? false,
+      isProfileComplete: user.isProfileComplete,
     };
     return safeCreator;
   }

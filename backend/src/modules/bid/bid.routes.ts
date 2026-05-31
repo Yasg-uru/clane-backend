@@ -76,17 +76,3 @@ export const createBidRouter = (
 
   return router;
 };
-
-export const createNotificationRouter = (
-  controller: BidController,
-  authMiddleware: AuthMiddleware,
-): Router => {
-  const router = Router();
-
-  router.get("/", authMiddleware.authenticate, controller.getNotifications);
-  router.get("/unread-count", authMiddleware.authenticate, controller.getUnreadCount);
-  router.patch("/:notificationId/read", authMiddleware.authenticate, controller.markAsRead);
-  router.patch("/read-all", authMiddleware.authenticate, controller.markAllAsRead);
-
-  return router;
-};

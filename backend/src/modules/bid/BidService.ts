@@ -1,10 +1,10 @@
 import type { BidDocument } from "../../models/Bid.model";
 import type { PaginatedResult } from "../../core/types";
-import type { BidRepository, BidListFilters, CreatorBidFilters } from "../../infrastructure/repositories/BidRepository";
-import type { CampaignRepository } from "../../infrastructure/repositories/CampaignRepository";
-import type { BrandRepository } from "../../infrastructure/repositories/BrandRepository";
-import type { CreatorRepository } from "../../infrastructure/repositories/CreatorRepository";
-import type { CreatorCampaignMatchRepository } from "../../infrastructure/repositories/CreatorCampaignMatchRepository";
+import type { IBidRepository, BidListFilters, CreatorBidFilters } from "../../core/interfaces/IBidRepository";
+import type { ICampaignRepository } from "../../core/interfaces/ICampaignRepository";
+import type { IBrandRepository } from "../../core/interfaces/IBrandRepository";
+import type { ICreatorRepository } from "../../core/interfaces/ICreatorRepository";
+import type { ICreatorCampaignMatchRepository } from "../../core/interfaces/ICreatorCampaignMatchRepository";
 import type { IEventPublisher } from "../../core/interfaces/IEventPublisher";
 import type { ILockService } from "../../core/interfaces/ILockService";
 import { NotFoundError } from "../../core/errors/NotFoundError";
@@ -14,6 +14,7 @@ import { ForbiddenError } from "../../core/errors/ForbiddenError";
 import { BID_EXCHANGE_NAME, BidEvent } from "../../config/config.constants";
 import { BID_LOCK_TTL_SECONDS, BUDGET_MIN_RATIO, BUDGET_MAX_RATIO } from "./bid.constants";
 import { BidCacheManager } from "./BidCacheManager";
+import { BidMapper } from "./BidMapper";
 import type { BidWithCreator, BidWithCampaign, AcceptBidResult } from "./bid.types";
 import type { SubmitBidInput } from "./bid.validator";
 import { BidStatus } from "../../models/Bid.model";
@@ -21,11 +22,11 @@ import { CampaignStatus } from "../../models/Campaign.model";
 
 export class BidService {
   constructor(
-    private readonly bidRepository: BidRepository,
-    private readonly campaignRepository: CampaignRepository,
-    private readonly brandRepository: BrandRepository,
-    private readonly creatorRepository: CreatorRepository,
-    private readonly creatorCampaignMatchRepository: CreatorCampaignMatchRepository,
+    private readonly bidRepository: IBidRepository,
+    private readonly campaignRepository: ICampaignRepository,
+    private readonly brandRepository: IBrandRepository,
+    private readonly creatorRepository: ICreatorRepository,
+    private readonly creatorCampaignMatchRepository: ICreatorCampaignMatchRepository,
     private readonly eventPublisher: IEventPublisher,
     private readonly bidCache: BidCacheManager,
     private readonly lockService: ILockService,
@@ -164,31 +165,11 @@ export class BidService {
 
     const items: BidWithCampaign[] = result.items.map((bid) => {
       const campaignInfo = campaignMap.get(bid.campaignId.toString());
-      return {
-        _id: bid._id.toString(),
-        campaignId: bid.campaignId.toString(),
-        brandId: bid.brandId.toString(),
-        proposedAmount: bid.proposedAmount,
-        pitch: bid.pitch,
-        attachmentUrl: bid.attachmentUrl,
-        proposedTimeline: bid.proposedTimeline,
-        status: bid.status,
-        declineReason: bid.declineReason,
-        withdrawReason: bid.withdrawReason,
-        autoDeclined: bid.autoDeclined,
-        shortlistedAt: bid.shortlistedAt,
-        acceptedAt: bid.acceptedAt,
-        declinedAt: bid.declinedAt,
-        withdrawnAt: bid.withdrawnAt,
-        campaignBudgetAtBid: bid.campaignBudgetAtBid,
-        campaignDeadlineAtBid: bid.campaignDeadlineAtBid,
-        campaignTitleAtBid: bid.campaignTitleAtBid,
-        createdAt: bid.createdAt ?? new Date(),
-        updatedAt: bid.updatedAt ?? new Date(),
-        campaignTitle: campaignInfo?.title ?? bid.campaignTitleAtBid,
-        campaignPlatform: campaignInfo?.platform ?? "unknown",
-        brandName: brandNameMap.get(bid.brandId.toString()) ?? "Unknown Brand",
-      };
+      return BidMapper.toBidWithCampaign(
+        bid,
+        campaignInfo,
+        brandNameMap.get(bid.brandId.toString()),
+      );
     });
 
     const enriched: PaginatedResult<BidWithCampaign> = { items, pagination: result.pagination };
@@ -230,40 +211,13 @@ export class BidService {
 
     const creatorMap = new Map(creators.map((c) => [c._id.toString(), c]));
 
-    let items: BidWithCreator[] = result.items.map((bid) => {
-      const creator = creatorMap.get(bid.creatorId.toString());
-      const matchScore = matchScoreMap.get(bid.creatorId.toString());
-      return {
-        _id: bid._id.toString(),
-        campaignId: bid.campaignId.toString(),
-        brandId: bid.brandId.toString(),
-        proposedAmount: bid.proposedAmount,
-        pitch: bid.pitch,
-        attachmentUrl: bid.attachmentUrl,
-        proposedTimeline: bid.proposedTimeline,
-        status: bid.status,
-        declineReason: bid.declineReason,
-        autoDeclined: bid.autoDeclined,
-        shortlistedAt: bid.shortlistedAt,
-        acceptedAt: bid.acceptedAt,
-        declinedAt: bid.declinedAt,
-        campaignBudgetAtBid: bid.campaignBudgetAtBid,
-        campaignDeadlineAtBid: bid.campaignDeadlineAtBid,
-        campaignTitleAtBid: bid.campaignTitleAtBid,
-        createdAt: bid.createdAt ?? new Date(),
-        updatedAt: bid.updatedAt ?? new Date(),
-        creator: {
-          id: creator?._id.toString() ?? bid.creatorId.toString(),
-          fullName: creator?.fullName ?? "",
-          instagramHandle: creator?.instagramHandle ?? "",
-          instagramFollowers: creator?.instagramFollowers ?? 0,
-          niche: creator?.niche ?? [],
-          city: creator?.city ?? "",
-          instagramProfilePicUrl: creator?.instagramProfilePicUrl,
-          matchScore,
-        },
-      };
-    });
+    let items: BidWithCreator[] = result.items.map((bid) =>
+      BidMapper.toBidWithCreator(
+        bid,
+        creatorMap.get(bid.creatorId.toString()),
+        matchScoreMap.get(bid.creatorId.toString()),
+      ),
+    );
 
     if (filters.sortBy === "match_score_desc") {
       items = items.sort((a, b) => (b.creator.matchScore ?? 0) - (a.creator.matchScore ?? 0));
@@ -496,8 +450,9 @@ export class BidService {
     }
   }
 
+  // Logical lock key; the `lock:` namespace is applied by LockService.
   private bidAcceptLockKey(campaignId: string): string {
-    return `lock:bid:accept:${campaignId}`;
+    return `bid:accept:${campaignId}`;
   }
 
 }

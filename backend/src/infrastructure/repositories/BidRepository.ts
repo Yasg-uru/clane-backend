@@ -1,28 +1,24 @@
 import mongoose, { type ClientSession, type FilterQuery, type SortOrder } from "mongoose";
-import { BidModel, BidStatus, type BidDocument } from "../../models/Bid.model";
-import type { PaginatedResult } from "../../core/types";
+import { BidModel, BidStatus, type BidDocument, type IBid } from "../../models/Bid.model";
+import type { PaginatedResult, WriteData } from "../../core/types";
+import type {
+  IBidRepository,
+  BidListFilters,
+  CreatorBidFilters,
+} from "../../core/interfaces/IBidRepository";
 import { BaseRepository } from "./BaseRepository";
 
-export interface BidListFilters {
-  status?: BidStatus;
-  sortBy?: "amount_asc" | "amount_desc" | "match_score_desc" | "submitted_at_desc";
-  bidIds?: string[];
-  page?: number;
-  limit?: number;
-}
+export type { BidListFilters, CreatorBidFilters };
 
-export interface CreatorBidFilters {
-  status?: BidStatus;
-  page?: number;
-  limit?: number;
-}
-
-export class BidRepository extends BaseRepository<BidDocument> {
+export class BidRepository
+  extends BaseRepository<BidDocument, IBid>
+  implements IBidRepository
+{
   async findById(id: string): Promise<BidDocument | null> {
     return BidModel.findById(id).exec();
   }
 
-  async create(data: Partial<Record<string, unknown>>): Promise<BidDocument> {
+  async create(data: WriteData<IBid>): Promise<BidDocument> {
     const [bid] = await BidModel.create([data]);
     if (!bid) throw new Error("Failed to create bid");
     return bid;
@@ -30,7 +26,7 @@ export class BidRepository extends BaseRepository<BidDocument> {
 
   async updateById(
     id: string,
-    data: Partial<Record<string, unknown>>,
+    data: WriteData<IBid>,
   ): Promise<BidDocument | null> {
     return BidModel.findByIdAndUpdate(id, data, { new: true }).exec();
   }
@@ -150,7 +146,7 @@ export class BidRepository extends BaseRepository<BidDocument> {
   async updateStatusWithSession(
     bidId: string,
     status: BidStatus,
-    meta: Partial<Record<string, unknown>>,
+    meta: WriteData<IBid>,
     session: ClientSession,
   ): Promise<BidDocument | null> {
     return BidModel.findByIdAndUpdate(

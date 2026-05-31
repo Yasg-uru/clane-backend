@@ -109,6 +109,37 @@ export const swaggerSpec = {
         },
       },
 
+      SocialAuthCallbackResult: {
+        type: "object",
+        description:
+          "Returned by the OAuth callback. The `status` field drives the frontend flow:\n" +
+          "- `authenticated` — fully logged in; `accessToken` + `user` are set, refresh cookie is set.\n" +
+          "- `profile_incomplete` — OAuth succeeded but required profile fields are missing; use `intermediateToken` as Bearer for `PATCH /:role/complete-profile`.\n" +
+          "- `pending_email_verification` — no email returned by provider (Instagram); use `intermediateToken` as Bearer for `POST /:role/instagram/submit-email`.\n" +
+          "- `pending_email_submission` — OTP was triggered; complete via `POST /verify-otp`.",
+        properties: {
+          status: {
+            type: "string",
+            enum: ["authenticated", "profile_incomplete", "pending_email_verification", "pending_email_submission"],
+          },
+          accessToken: { type: "string", nullable: true, example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." },
+          intermediateToken: {
+            type: "string",
+            nullable: true,
+            description: "Short-lived JWT used as Bearer token for follow-up steps (complete-profile, submit-email). Null when status is authenticated.",
+          },
+          user: {
+            nullable: true,
+            oneOf: [
+              { $ref: "#/components/schemas/SafeBrand" },
+              { $ref: "#/components/schemas/SafeCreator" },
+            ],
+          },
+          instagramTokenExpiringSoon: { type: "boolean", nullable: true, description: "True if the stored Instagram access token expires within 7 days" },
+          instagramTokenExpired: { type: "boolean", nullable: true, description: "True if the stored Instagram access token has already expired" },
+        },
+      },
+
       // ── Campaign ──────────────────────────────────────────────────────────
       GeoPoint: {
         type: "object",
@@ -474,7 +505,7 @@ export const swaggerSpec = {
 
   tags: [
     { name: "Health", description: "Service health check" },
-    { name: "Auth", description: "Registration, OTP verification, login, token refresh, logout" },
+    { name: "Auth", description: "Registration, OTP verification, login, token refresh, logout, and social OAuth (Instagram / Google / YouTube)" },
     { name: "Campaigns", description: "Brand campaign lifecycle and creator discovery feed" },
     { name: "Bids", description: "Creator bidding and brand bid management" },
     { name: "Notifications", description: "In-app notification inbox" },
@@ -799,6 +830,249 @@ export const swaggerSpec = {
         responses: {
           "200": { description: "OTP resent", content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean" }, message: { type: "string" } } } } } },
           "429": { description: "Resend cooldown active", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+        },
+      },
+    },
+
+    // ── Social Auth ────────────────────────────────────────────────────────
+    "/api/v1/auth/{role}/{provider}": {
+      get: {
+        tags: ["Auth"],
+        summary: "Initiate social OAuth login / signup",
+        description:
+          "Returns a provider-specific OAuth authorization URL. Redirect the user to this URL to begin the OAuth flow.\n\n" +
+          "Supported combinations: `brand` + `google`, `creator` + `instagram`, `creator` + `youtube`.",
+        operationId: "initiateSocialAuth",
+        parameters: [
+          { name: "role", in: "path", required: true, schema: { type: "string", enum: ["brand", "creator"] }, example: "creator" },
+          { name: "provider", in: "path", required: true, schema: { type: "string", enum: ["google", "instagram", "youtube"] }, example: "instagram" },
+        ],
+        responses: {
+          "200": {
+            description: "OAuth URL generated — redirect the user to this URL",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean", example: true },
+                    message: { type: "string", example: "OAuth URL generated" },
+                    data: {
+                      type: "object",
+                      properties: {
+                        url: { type: "string", description: "Provider OAuth authorization URL", example: "https://api.instagram.com/oauth/authorize?client_id=..." },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "400": { description: "Unsupported role/provider combination", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+        },
+      },
+    },
+
+    "/api/v1/auth/{role}/{provider}/callback": {
+      get: {
+        tags: ["Auth"],
+        summary: "Handle social OAuth callback",
+        description:
+          "Called by the OAuth provider after the user grants permission. Processes the authorization code and returns a `SocialAuthCallbackResult`.\n\n" +
+          "The `status` field in the response tells the frontend what to do next:\n" +
+          "- `authenticated` → store `accessToken`, refresh cookie is already set.\n" +
+          "- `profile_incomplete` → redirect to complete-profile step; pass `intermediateToken` as Bearer.\n" +
+          "- `pending_email_submission` → Instagram user has no email; call `POST /:role/instagram/submit-email` with `intermediateToken`.\n" +
+          "- `pending_email_verification` → OTP sent; complete via `POST /verify-otp`.",
+        operationId: "handleSocialCallback",
+        parameters: [
+          { name: "role", in: "path", required: true, schema: { type: "string", enum: ["brand", "creator"] } },
+          { name: "provider", in: "path", required: true, schema: { type: "string", enum: ["google", "instagram", "youtube"] } },
+          { name: "code", in: "query", required: true, schema: { type: "string" }, description: "Authorization code returned by the provider" },
+          { name: "state", in: "query", required: true, schema: { type: "string" }, description: "CSRF state token issued by /initiate" },
+        ],
+        responses: {
+          "200": {
+            description: "OAuth callback processed",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean", example: true },
+                    message: { type: "string", example: "Authentication successful" },
+                    data: { $ref: "#/components/schemas/SocialAuthCallbackResult" },
+                  },
+                },
+              },
+            },
+          },
+          "400": { description: "Invalid state or missing code", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+          "401": { description: "OAuth exchange failed", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+        },
+      },
+    },
+
+    "/api/v1/auth/{role}/{provider}/connect": {
+      post: {
+        tags: ["Auth"],
+        summary: "Initiate social account connect (authenticated user)",
+        description:
+          "Generates an OAuth URL for connecting an additional social provider to an already-authenticated account (e.g. a brand connecting Google, or a creator connecting YouTube).\n\n" +
+          "Requires a valid access token — the user must be logged in first.",
+        operationId: "connectSocialAccount",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "role", in: "path", required: true, schema: { type: "string", enum: ["brand", "creator"] } },
+          { name: "provider", in: "path", required: true, schema: { type: "string", enum: ["google", "instagram", "youtube"] } },
+        ],
+        responses: {
+          "200": {
+            description: "OAuth connect URL generated — redirect the user to this URL",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean", example: true },
+                    message: { type: "string", example: "OAuth URL generated" },
+                    data: {
+                      type: "object",
+                      properties: {
+                        url: { type: "string", description: "Provider OAuth authorization URL with connect intent encoded in state" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": { description: "Unauthorized", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+          "400": { description: "Unsupported role/provider combination", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+        },
+      },
+    },
+
+    "/api/v1/auth/{role}/complete-profile": {
+      patch: {
+        tags: ["Auth"],
+        summary: "Complete profile after social signup",
+        description:
+          "Called when the OAuth callback returns `status: profile_incomplete`. The required fields differ by role.\n\n" +
+          "**Authorization:** Pass either a regular access token *or* the `intermediateToken` from the callback as `Authorization: Bearer <token>`.",
+        operationId: "completeSocialProfile",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "role", in: "path", required: true, schema: { type: "string", enum: ["brand", "creator"] } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                oneOf: [
+                  {
+                    title: "Brand (role=brand)",
+                    type: "object",
+                    required: ["brandName", "brandType", "city"],
+                    properties: {
+                      brandName: { type: "string", example: "BrandCo" },
+                      brandType: { type: "string", example: "Fashion" },
+                      city: { type: "string", example: "Mumbai" },
+                    },
+                  },
+                  {
+                    title: "Creator (role=creator)",
+                    type: "object",
+                    required: ["instagramHandle", "instagramFollowers", "niche", "city"],
+                    properties: {
+                      instagramHandle: { type: "string", example: "@arjun_creates" },
+                      instagramFollowers: { type: "integer", minimum: 0, example: 25000 },
+                      niche: { type: "array", items: { type: "string" }, minItems: 1, example: ["fashion", "lifestyle"] },
+                      city: { type: "string", example: "Delhi" },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Profile completed — tokens issued, refresh cookie set",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean", example: true },
+                    message: { type: "string", example: "Profile completed" },
+                    data: { $ref: "#/components/schemas/AuthResult" },
+                  },
+                },
+              },
+            },
+          },
+          "401": { description: "Invalid or expired intermediateToken / access token", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+          "422": { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+        },
+      },
+    },
+
+    "/api/v1/auth/{role}/instagram/submit-email": {
+      post: {
+        tags: ["Auth"],
+        summary: "Submit email for Instagram users without a public email",
+        description:
+          "Instagram does not always expose the user's email. When the OAuth callback returns `status: pending_email_submission`, the frontend must collect the email and call this endpoint.\n\n" +
+          "**Authorization:** Pass the `intermediateToken` from the callback response as `Authorization: Bearer <token>`.\n\n" +
+          "On success, an OTP is sent to the provided email. Complete verification via `POST /verify-otp`.",
+        operationId: "submitInstagramEmail",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "role", in: "path", required: true, schema: { type: "string", enum: ["brand", "creator"] } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["email"],
+                properties: {
+                  email: { type: "string", format: "email", example: "arjun@creator.in" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Email accepted — OTP sent",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean", example: true },
+                    message: { type: "string", example: "Email submitted, OTP sent" },
+                    data: {
+                      type: "object",
+                      properties: {
+                        intermediateToken: {
+                          type: "string",
+                          description: "Updated intermediateToken to use when calling POST /verify-otp",
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": { description: "Invalid or expired intermediateToken", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+          "409": { description: "Email already registered to another account", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+          "422": { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
         },
       },
     },

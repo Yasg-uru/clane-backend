@@ -4,10 +4,11 @@ import type { PaginatedResult } from "../../core/types";
 import type { CampaignDocument } from "../../models/Campaign.model";
 import type { BrowseFilters } from "../../infrastructure/repositories/CampaignRepository";
 import type { CampaignWithMatch } from "./campaign.types";
-
-const BROWSE_TTL_SECONDS = 120;
-const BRAND_LIST_TTL_SECONDS = 300;
-const DETAIL_TTL_SECONDS = 600;
+import {
+  BROWSE_CACHE_TTL_SECONDS,
+  BRAND_LIST_CACHE_TTL_SECONDS,
+  DETAIL_CACHE_TTL_SECONDS,
+} from "./campaign.constants";
 
 export class CampaignCacheManager {
   constructor(private readonly cache: ICacheService) {}
@@ -26,7 +27,7 @@ export class CampaignCacheManager {
     limit: number,
     value: PaginatedResult<CampaignWithMatch>,
   ): Promise<void> {
-    await this.cache.set(this.browseKey(filters, page, limit), value, BROWSE_TTL_SECONDS);
+    await this.cache.set(this.browseKey(filters, page, limit), value, BROWSE_CACHE_TTL_SECONDS);
   }
 
   async invalidateBrowse(): Promise<void> {
@@ -45,7 +46,7 @@ export class CampaignCacheManager {
     page: number,
     value: PaginatedResult<CampaignDocument>,
   ): Promise<void> {
-    await this.cache.set(this.brandListKey(brandId, page), value, BRAND_LIST_TTL_SECONDS);
+    await this.cache.set(this.brandListKey(brandId, page), value, BRAND_LIST_CACHE_TTL_SECONDS);
   }
 
   async invalidateBrand(brandId: string): Promise<void> {
@@ -57,7 +58,7 @@ export class CampaignCacheManager {
   }
 
   async setDetail(slug: string, value: object): Promise<void> {
-    await this.cache.set(this.detailKey(slug), value, DETAIL_TTL_SECONDS);
+    await this.cache.set(this.detailKey(slug), value, DETAIL_CACHE_TTL_SECONDS);
   }
 
   async invalidateDetail(slug: string): Promise<void> {

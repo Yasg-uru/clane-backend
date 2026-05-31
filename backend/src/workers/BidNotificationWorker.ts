@@ -1,6 +1,6 @@
 import type { ConsumeMessage } from "amqplib";
 import type { RabbitMQConnection } from "../config/RabbitMQConnection";
-import type { NotificationRepository } from "../infrastructure/repositories/NotificationRepository";
+import type { INotificationRepository } from "../core/interfaces/INotificationRepository";
 import { BID_EXCHANGE_NAME, BidEvent, BID_EVENT_BINDING } from "../config/config.constants";
 import { logger } from "../utils/logger";
 import { UserRole } from "../core/types";
@@ -14,7 +14,7 @@ export class BidNotificationWorker extends BaseWorker {
   protected readonly prefetch = 20;
 
   constructor(
-    private readonly notificationRepository: NotificationRepository,
+    private readonly notificationRepository: INotificationRepository,
     rabbitMQ: RabbitMQConnection,
   ) {
     super(rabbitMQ);

@@ -1,21 +1,20 @@
 import type { FilterQuery } from "mongoose";
-import { CollabRoomModel, type CollabRoomDocument } from "../../models/CollabRoom.model";
-import type { CollabRoomStatus } from "../../models/CollabRoom.model";
-import type { PaginatedResult } from "../../core/types";
+import { CollabRoomModel, type CollabRoomDocument, type ICollabRoom } from "../../models/CollabRoom.model";
+import type { PaginatedResult, WriteData } from "../../core/types";
+import type { ICollabRoomRepository, CollabRoomFilters } from "../../core/interfaces/ICollabRoomRepository";
 import { BaseRepository } from "./BaseRepository";
 
-export interface CollabRoomFilters {
-  status?: CollabRoomStatus;
-  page?: number;
-  limit?: number;
-}
+export type { CollabRoomFilters };
 
-export class CollabRoomRepository extends BaseRepository<CollabRoomDocument> {
+export class CollabRoomRepository
+  extends BaseRepository<CollabRoomDocument, ICollabRoom>
+  implements ICollabRoomRepository
+{
   async findById(id: string): Promise<CollabRoomDocument | null> {
     return CollabRoomModel.findById(id).exec();
   }
 
-  async create(data: Partial<Record<string, unknown>>): Promise<CollabRoomDocument> {
+  async create(data: WriteData<ICollabRoom>): Promise<CollabRoomDocument> {
     const [room] = await CollabRoomModel.create([data]);
     if (!room) throw new Error("Failed to create collab room");
     return room;
@@ -23,7 +22,7 @@ export class CollabRoomRepository extends BaseRepository<CollabRoomDocument> {
 
   async updateById(
     id: string,
-    data: Partial<Record<string, unknown>>,
+    data: WriteData<ICollabRoom>,
   ): Promise<CollabRoomDocument | null> {
     return CollabRoomModel.findByIdAndUpdate(id, data, { new: true }).exec();
   }

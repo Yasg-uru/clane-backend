@@ -785,8 +785,7 @@ Global Redis key namespaces in use:
 | `otp:lock:*` | `OtpService` |
 | `otp:cooldown:*` | `OtpService` |
 | `blacklist:at:*` | `TokenService` |
-| `lock:bid:accept:*` | `BidService` |
-| `lock:webhook:escrow:*` | `EscrowService` |
+| `lock:*` | `LockService` (owns the `lock:` prefix; callers pass a logical key e.g. `bid:accept:<id>`, `webhook:escrow:<id>`) |
 | `cache:campaigns:browse:*` | `CampaignCacheManager` |
 | `cache:campaigns:brand:*` | `CampaignCacheManager` |
 | `cache:campaign:detail:*` | `CampaignCacheManager` |

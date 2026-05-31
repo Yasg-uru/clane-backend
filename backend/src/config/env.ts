@@ -35,15 +35,20 @@ export const env = cleanEnv(process.env, {
   SMTP_USER: str(),
   SMTP_PASS: str(),
   SMTP_FROM: str(),
-  // Instagram OAuth (Basic Display API — upgrade to Graph API for followers_count)
-  INSTAGRAM_CLIENT_ID: str(),
-  INSTAGRAM_CLIENT_SECRET: str(),
-  INSTAGRAM_REDIRECT_URI: url(),
-  INSTAGRAM_TOKEN_ENCRYPTION_KEY: hexKey32(),
   // Google OAuth
   GOOGLE_CLIENT_ID: str(),
   GOOGLE_CLIENT_SECRET: str(),
-  GOOGLE_REDIRECT_URI: url(),
+  GOOGLE_REDIRECT_URI_BRAND: url(),
+  GOOGLE_REDIRECT_URI_CREATOR: url(),
+  // Instagram OAuth (Meta Graph API)
+  INSTAGRAM_APP_ID: str(),
+  INSTAGRAM_APP_SECRET: str(),
+  INSTAGRAM_REDIRECT_URI_BRAND: url(),
+  INSTAGRAM_REDIRECT_URI_CREATOR: url(),
+  // AES-256-GCM key for encrypting all social access tokens at rest
+  INSTAGRAM_TOKEN_ENCRYPTION_KEY: hexKey32(),
+  // YouTube OAuth — reuses Google OAuth client, needs separate callback URI
+  YOUTUBE_REDIRECT_URI_CREATOR: url(),
   // Razorpay
   RAZORPAY_KEY_ID: str(),
   RAZORPAY_KEY_SECRET: str(),

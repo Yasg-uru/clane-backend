@@ -1,14 +1,18 @@
 import mongoose, { type ClientSession, type FilterQuery } from "mongoose";
-import { EscrowModel, EscrowStatus, type EscrowDocument } from "../../models/Escrow.model";
-import type { PaginatedResult } from "../../core/types";
+import { EscrowModel, EscrowStatus, type EscrowDocument, type IEscrow } from "../../models/Escrow.model";
+import type { PaginatedResult, WriteData } from "../../core/types";
+import type { IEscrowRepository } from "../../core/interfaces/IEscrowRepository";
 import { BaseRepository } from "./BaseRepository";
 
-export class EscrowRepository extends BaseRepository<EscrowDocument> {
+export class EscrowRepository
+  extends BaseRepository<EscrowDocument, IEscrow>
+  implements IEscrowRepository
+{
   async findById(id: string): Promise<EscrowDocument | null> {
     return EscrowModel.findById(id).exec();
   }
 
-  async create(data: Partial<Record<string, unknown>>): Promise<EscrowDocument> {
+  async create(data: WriteData<IEscrow>): Promise<EscrowDocument> {
     const [escrow] = await EscrowModel.create([data]);
     if (!escrow) throw new Error("Failed to create escrow");
     return escrow;
@@ -16,7 +20,7 @@ export class EscrowRepository extends BaseRepository<EscrowDocument> {
 
   async updateById(
     id: string,
-    data: Partial<Record<string, unknown>>,
+    data: WriteData<IEscrow>,
   ): Promise<EscrowDocument | null> {
     return EscrowModel.findByIdAndUpdate(id, data, { new: true }).exec();
   }
@@ -115,7 +119,7 @@ export class EscrowRepository extends BaseRepository<EscrowDocument> {
 
   async updateByIdWithSession(
     id: string,
-    data: Partial<Record<string, unknown>>,
+    data: WriteData<IEscrow>,
     session: ClientSession,
   ): Promise<EscrowDocument | null> {
     return EscrowModel.findByIdAndUpdate(id, data, { new: true, session }).exec();

@@ -49,35 +49,35 @@ const creatorRequirementsSchema = z.object({
   languages: z.array(z.string().min(1).max(50)).max(10).optional(),
 }).optional();
 
+const campaignSchemaShape = {
+  title: trimmedString(3, 100, "Title"),
+  platform: z.nativeEnum(CampaignPlatform),
+  niche: z
+    .array(z.string().min(1).max(30))
+    .min(1, "At least one niche is required")
+    .max(5, "At most 5 niches allowed"),
+  targetLocation: trimmedString(2, 100, "Target location"),
+  targetAgeMin: z.number().int("Must be an integer").min(13).max(65),
+  targetAgeMax: z.number().int("Must be an integer").min(13).max(65),
+  targetGender: z.nativeEnum(TargetGender),
+  budgetAmount: z
+    .number()
+    .int("Budget must be an integer")
+    .min(500, "Minimum budget is ₹500")
+    .max(10_000_000, "Maximum budget is ₹1,00,00,000"),
+  deadline: z.coerce.date().refine(
+    (val) => val >= new Date(Date.now() + MIN_DEADLINE_MS),
+    "Deadline must be at least 3 days from now",
+  ),
+  contentBrief: trimmedString(50, 2000, "Content brief"),
+  revisionRounds: z.union([z.literal(1), z.literal(2)]),
+  deliveryType: z.nativeEnum(CampaignDeliveryType),
+  shootingLocation: shootingLocationSchema.optional(),
+  creatorRequirements: creatorRequirementsSchema,
+} as const;
+
 export const createCampaignSchema = z
-  .object({
-    title: trimmedString(3, 100, "Title"),
-    platform: z.nativeEnum(CampaignPlatform),
-    niche: z
-      .array(z.string().min(1).max(30))
-      .min(1, "At least one niche is required")
-      .max(5, "At most 5 niches allowed"),
-    targetLocation: trimmedString(2, 100, "Target location"),
-    targetAgeMin: z.number().int("Must be an integer").min(13).max(65),
-    targetAgeMax: z.number().int("Must be an integer").min(13).max(65),
-    targetGender: z.nativeEnum(TargetGender),
-    budgetAmount: z
-      .number()
-      .int("Budget must be an integer")
-      .min(500, "Minimum budget is ₹500")
-      .max(10_000_000, "Maximum budget is ₹1,00,00,000"),
-    deadline: z.coerce
-      .date()
-      .refine(
-        (val) => val >= new Date(Date.now() + MIN_DEADLINE_MS),
-        "Deadline must be at least 3 days from now",
-      ),
-    contentBrief: trimmedString(50, 2000, "Content brief"),
-    revisionRounds: z.union([z.literal(1), z.literal(2)]),
-    deliveryType: z.nativeEnum(CampaignDeliveryType),
-    shootingLocation: shootingLocationSchema.optional(),
-    creatorRequirements: creatorRequirementsSchema,
-  })
+  .object(campaignSchemaShape)
   .refine(
     (data) => data.targetAgeMax >= data.targetAgeMin,
     { message: "targetAgeMax must be greater than or equal to targetAgeMin", path: ["targetAgeMax"] },
@@ -87,7 +87,8 @@ export const createCampaignSchema = z
     { message: "Shooting location is required for onsite campaigns", path: ["shootingLocation"] },
   );
 
-export const updateCampaignSchema = createCampaignSchema
+export const updateCampaignSchema = z
+  .object(campaignSchemaShape)
   .partial()
   .refine(
     (data) => {

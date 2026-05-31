@@ -66,14 +66,8 @@ export const getCreatorBidsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(20),
 });
 
-export const getNotificationsSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(20),
-});
-
 export type SubmitBidInput = z.infer<typeof submitBidSchema>;
 export type WithdrawBidInput = z.infer<typeof withdrawBidSchema>;
 export type DeclineBidInput = z.infer<typeof declineBidSchema>;
 export type GetBidsInput = z.infer<typeof getBidsSchema>;
 export type GetCreatorBidsInput = z.infer<typeof getCreatorBidsSchema>;
-export type GetNotificationsInput = z.infer<typeof getNotificationsSchema>;

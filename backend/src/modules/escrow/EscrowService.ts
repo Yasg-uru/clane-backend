@@ -3,12 +3,12 @@ import type { EscrowDocument } from "../../models/Escrow.model";
 import type { CollabRoomDocument } from "../../models/CollabRoom.model";
 import type { BidDocument } from "../../models/Bid.model";
 import type { PaginatedResult } from "../../core/types";
-import type { EscrowRepository } from "../../infrastructure/repositories/EscrowRepository";
-import type { CollabRoomRepository } from "../../infrastructure/repositories/CollabRoomRepository";
-import type { BidRepository } from "../../infrastructure/repositories/BidRepository";
-import type { CampaignRepository } from "../../infrastructure/repositories/CampaignRepository";
-import type { NotificationRepository } from "../../infrastructure/repositories/NotificationRepository";
-import type { RazorpayService } from "../../infrastructure/services/RazorpayService";
+import type { IEscrowRepository } from "../../core/interfaces/IEscrowRepository";
+import type { ICollabRoomRepository } from "../../core/interfaces/ICollabRoomRepository";
+import type { IBidRepository } from "../../core/interfaces/IBidRepository";
+import type { ICampaignRepository } from "../../core/interfaces/ICampaignRepository";
+import type { INotificationRepository } from "../../core/interfaces/INotificationRepository";
+import type { IRazorpayService } from "../../core/interfaces/IRazorpayService";
 import type { IEventPublisher } from "../../core/interfaces/IEventPublisher";
 import type { ILockService } from "../../core/interfaces/ILockService";
 import type { ICacheService } from "../../core/interfaces/ICacheService";
@@ -56,13 +56,13 @@ interface WebhookPayload {
 
 export class EscrowService {
   constructor(
-    private readonly escrowRepository: EscrowRepository,
-    private readonly collabRoomRepository: CollabRoomRepository,
-    private readonly bidRepository: BidRepository,
-    private readonly campaignRepository: CampaignRepository,
-    private readonly razorpayService: RazorpayService,
+    private readonly escrowRepository: IEscrowRepository,
+    private readonly collabRoomRepository: ICollabRoomRepository,
+    private readonly bidRepository: IBidRepository,
+    private readonly campaignRepository: ICampaignRepository,
+    private readonly razorpayService: IRazorpayService,
     private readonly eventPublisher: IEventPublisher,
-    private readonly notificationRepository: NotificationRepository,
+    private readonly notificationRepository: INotificationRepository,
     private readonly lockService: ILockService,
     private readonly _cacheService: ICacheService,
   ) {
@@ -558,8 +558,9 @@ export class EscrowService {
     });
   }
 
+  // Logical lock key; the `lock:` namespace is applied by LockService.
   private webhookLockKey(escrowId: string): string {
-    return `lock:webhook:escrow:${escrowId}`;
+    return `webhook:escrow:${escrowId}`;
   }
 
 }

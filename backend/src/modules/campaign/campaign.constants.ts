@@ -5,3 +5,8 @@ export const MIN_DEADLINE_MS = MIN_DEADLINE_DAYS * 24 * 60 * 60 * 1000;
 export const DEFAULT_PAGE = 1;
 export const DEFAULT_LIMIT = 20;
 export const MAX_LIMIT = 50;
+
+// Cache TTLs (seconds) for the campaign read paths.
+export const BROWSE_CACHE_TTL_SECONDS = 120;
+export const BRAND_LIST_CACHE_TTL_SECONDS = 300;
+export const DETAIL_CACHE_TTL_SECONDS = 600;

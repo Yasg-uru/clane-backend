@@ -1,6 +1,6 @@
 import type { ConsumeMessage } from "amqplib";
 import type { RabbitMQConnection } from "../config/RabbitMQConnection";
-import type { NotificationRepository } from "../infrastructure/repositories/NotificationRepository";
+import type { INotificationRepository } from "../core/interfaces/INotificationRepository";
 import type { EscrowService } from "../modules/escrow/EscrowService";
 import { ConflictError } from "../core/errors/ConflictError";
 import { ESCROW_EXCHANGE_NAME, EscrowEvent } from "../config/config.constants";
@@ -17,7 +17,7 @@ export class EscrowFundedWorker extends BaseWorker {
 
   constructor(
     private readonly escrowService: EscrowService,
-    private readonly notificationRepository: NotificationRepository,
+    private readonly notificationRepository: INotificationRepository,
     rabbitMQ: RabbitMQConnection,
   ) {
     super(rabbitMQ);

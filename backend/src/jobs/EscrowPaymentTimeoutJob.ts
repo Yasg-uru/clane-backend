@@ -1,4 +1,4 @@
-import type { EscrowRepository } from "../infrastructure/repositories/EscrowRepository";
+import type { IEscrowRepository } from "../core/interfaces/IEscrowRepository";
 import type { EscrowService } from "../modules/escrow/EscrowService";
 import { PAYMENT_TIMEOUT_JOB_INTERVAL_MS } from "../modules/escrow/escrow.constants";
 import { logger } from "../utils/logger";
@@ -8,7 +8,7 @@ export class EscrowPaymentTimeoutJob extends BaseJob {
   protected readonly intervalMs = PAYMENT_TIMEOUT_JOB_INTERVAL_MS;
 
   constructor(
-    private readonly escrowRepository: EscrowRepository,
+    private readonly escrowRepository: IEscrowRepository,
     private readonly escrowService: EscrowService,
   ) {
     super();

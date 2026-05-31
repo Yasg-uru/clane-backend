@@ -1,23 +1,20 @@
 import { Types } from "mongoose";
-import { NotificationModel, type NotificationDocument, type NotificationType } from "../../models/Notification.model";
-import type { PaginatedResult, UserRole } from "../../core/types";
+import { NotificationModel, type INotification, type NotificationDocument } from "../../models/Notification.model";
+import type { PaginatedResult, WriteData } from "../../core/types";
+import type { INotificationRepository, CreateNotificationInput } from "../../core/interfaces/INotificationRepository";
 import { BaseRepository } from "./BaseRepository";
 
-export interface CreateNotificationInput {
-  recipientId: string;
-  recipientRole: UserRole;
-  type: NotificationType;
-  title: string;
-  body: string;
-  meta?: Record<string, unknown>;
-}
+export type { CreateNotificationInput };
 
-export class NotificationRepository extends BaseRepository<NotificationDocument> {
+export class NotificationRepository
+  extends BaseRepository<NotificationDocument, INotification>
+  implements INotificationRepository
+{
   async findById(id: string): Promise<NotificationDocument | null> {
     return NotificationModel.findById(id).exec();
   }
 
-  async create(data: Partial<Record<string, unknown>>): Promise<NotificationDocument> {
+  async create(data: WriteData<INotification>): Promise<NotificationDocument> {
     const [notification] = await NotificationModel.create([data]);
     if (!notification) throw new Error("Failed to create notification");
     return notification;
@@ -25,7 +22,7 @@ export class NotificationRepository extends BaseRepository<NotificationDocument>
 
   async updateById(
     id: string,
-    data: Partial<Record<string, unknown>>,
+    data: WriteData<INotification>,
   ): Promise<NotificationDocument | null> {
     return NotificationModel.findByIdAndUpdate(id, data, { new: true }).exec();
   }

@@ -4,8 +4,9 @@ import {
   type CreatorCampaignMatchDocument,
 } from "../../models/CreatorCampaignMatch.model";
 import type { MatchScoreResult } from "../../core/types";
+import type { ICreatorCampaignMatchRepository } from "../../core/interfaces/ICreatorCampaignMatchRepository";
 
-export class CreatorCampaignMatchRepository {
+export class CreatorCampaignMatchRepository implements ICreatorCampaignMatchRepository {
   async upsertMatch(
     creatorId: string,
     campaignId: string,

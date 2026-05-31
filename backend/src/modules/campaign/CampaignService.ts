@@ -1,9 +1,9 @@
 import type { CampaignDocument } from "../../models/Campaign.model";
 import type { PaginatedResult } from "../../core/types";
-import type { CampaignRepository, BrowseFilters, CampaignListFilters } from "../../infrastructure/repositories/CampaignRepository";
-import type { CreatorCampaignMatchRepository } from "../../infrastructure/repositories/CreatorCampaignMatchRepository";
-import type { BrandRepository } from "../../infrastructure/repositories/BrandRepository";
-import type { CreatorRepository } from "../../infrastructure/repositories/CreatorRepository";
+import type { ICampaignRepository, BrowseFilters, CampaignListFilters } from "../../core/interfaces/ICampaignRepository";
+import type { ICreatorCampaignMatchRepository } from "../../core/interfaces/ICreatorCampaignMatchRepository";
+import type { IBrandRepository } from "../../core/interfaces/IBrandRepository";
+import type { ICreatorRepository } from "../../core/interfaces/ICreatorRepository";
 import type { IEventPublisher } from "../../core/interfaces/IEventPublisher";
 import type { MatchScorer } from "./scoring/MatchScorer";
 import { NotFoundError } from "../../core/errors/NotFoundError";
@@ -21,10 +21,10 @@ import { CampaignStatus } from "../../models/Campaign.model";
 
 export class CampaignService {
   constructor(
-    private readonly campaignRepository: CampaignRepository,
-    private readonly creatorCampaignMatchRepository: CreatorCampaignMatchRepository,
-    private readonly brandRepository: BrandRepository,
-    private readonly creatorRepository: CreatorRepository,
+    private readonly campaignRepository: ICampaignRepository,
+    private readonly creatorCampaignMatchRepository: ICreatorCampaignMatchRepository,
+    private readonly brandRepository: IBrandRepository,
+    private readonly creatorRepository: ICreatorRepository,
     private readonly eventPublisher: IEventPublisher,
     private readonly campaignCache: CampaignCacheManager,
     private readonly matchScorer: MatchScorer,

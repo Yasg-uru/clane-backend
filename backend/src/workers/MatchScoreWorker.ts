@@ -1,7 +1,7 @@
 import type { ConsumeMessage } from "amqplib";
 import type { RabbitMQConnection } from "../config/RabbitMQConnection";
-import type { CreatorCampaignMatchRepository } from "../infrastructure/repositories/CreatorCampaignMatchRepository";
-import type { CreatorRepository } from "../infrastructure/repositories/CreatorRepository";
+import type { ICreatorCampaignMatchRepository } from "../core/interfaces/ICreatorCampaignMatchRepository";
+import type { ICreatorRepository } from "../core/interfaces/ICreatorRepository";
 import type { MatchScorer } from "../modules/campaign/scoring/MatchScorer";
 import { CAMPAIGN_EXCHANGE_NAME, CampaignEvent } from "../config/config.constants";
 import { logger } from "../utils/logger";
@@ -15,8 +15,8 @@ export class MatchScoreWorker extends BaseWorker {
   protected readonly prefetch = 10;
 
   constructor(
-    private readonly creatorCampaignMatchRepository: CreatorCampaignMatchRepository,
-    private readonly creatorRepository: CreatorRepository,
+    private readonly creatorCampaignMatchRepository: ICreatorCampaignMatchRepository,
+    private readonly creatorRepository: ICreatorRepository,
     rabbitMQ: RabbitMQConnection,
     private readonly matchScorer: MatchScorer,
   ) {

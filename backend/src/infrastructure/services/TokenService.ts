@@ -62,6 +62,33 @@ export class TokenService implements ITokenService {
     return (await this.redisClient.exists(`blacklist:at:${jti}`)) === 1;
   }
 
+  generateIntermediateToken(payload: JwtPayload): string {
+    return jwt.sign(
+      {
+        userId: payload.userId,
+        role: payload.role,
+        email: payload.email,
+        purpose: payload.purpose,
+        jti: crypto.randomUUID(),
+      },
+      env.JWT_ACCESS_SECRET,
+      SHORT_LIVED_TOKEN_OPTIONS,
+    );
+  }
+
+  verifyIntermediateToken(token: string): JwtPayload {
+    let decoded: string | JsonWebTokenPayload;
+    try {
+      decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, VERIFY_OPTIONS);
+    } catch {
+      throw new AuthError("Unauthorized");
+    }
+    if (typeof decoded === "string" || decoded === null) throw new AuthError("Unauthorized");
+    const raw = decoded as Record<string, unknown>;
+    if (!raw["purpose"]) throw new AuthError("Unauthorized");
+    return this.normalizePayload(decoded);
+  }
+
   signInstagramPendingToken(sessionId: string): string {
     return jwt.sign(
       { sessionId, purpose: INSTAGRAM_PENDING_PURPOSE },

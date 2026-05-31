@@ -11,14 +11,17 @@ import type { CampaignController } from "./modules/campaign/CampaignController";
 import type { BidController } from "./modules/bid/BidController";
 import type { EscrowController } from "./modules/escrow/EscrowController";
 import type { CollabController } from "./modules/collab/CollabController";
+import type { NotificationController } from "./modules/notification/NotificationController";
 import type { AuthMiddleware } from "./infrastructure/middleware/AuthMiddleware";
+import type { SocialAuthMiddleware } from "./infrastructure/middleware/SocialAuthMiddleware";
 import type { RateLimiterMiddleware } from "./infrastructure/middleware/RateLimiterMiddleware";
 import type { ErrorHandlerMiddleware } from "./infrastructure/middleware/ErrorHandlerMiddleware";
 import type { NotFoundMiddleware } from "./infrastructure/middleware/NotFoundMiddleware";
 import type { RequestLoggerMiddleware } from "./infrastructure/middleware/RequestLoggerMiddleware";
 import { createAuthRouter } from "./modules/auth/auth.routes";
 import { createCampaignRouter } from "./modules/campaign/campaign.routes";
-import { createBidRouter, createNotificationRouter } from "./modules/bid/bid.routes";
+import { createBidRouter } from "./modules/bid/bid.routes";
+import { createNotificationRouter } from "./modules/notification/notification.routes";
 import { createEscrowRouter, createWebhookRouter } from "./modules/escrow/escrow.routes";
 import { createCollabRouter } from "./modules/collab/collab.routes";
 
@@ -31,7 +34,9 @@ export class App {
     private readonly bidController: BidController,
     private readonly escrowController: EscrowController,
     private readonly collabController: CollabController,
+    private readonly notificationController: NotificationController,
     private readonly authMiddleware: AuthMiddleware,
+    private readonly socialAuthMiddleware: SocialAuthMiddleware,
     private readonly rateLimiter: RateLimiterMiddleware,
     private readonly errorHandler: ErrorHandlerMiddleware,
     private readonly notFound: NotFoundMiddleware,
@@ -87,7 +92,7 @@ export class App {
     this.express.use(
       "/api/v1/auth",
       this.rateLimiter.auth,
-      createAuthRouter(this.authController, this.authMiddleware),
+      createAuthRouter(this.authController, this.authMiddleware, this.socialAuthMiddleware),
     );
 
     this.express.use(
@@ -102,7 +107,7 @@ export class App {
 
     this.express.use(
       "/api/v1/notifications",
-      createNotificationRouter(this.bidController, this.authMiddleware),
+      createNotificationRouter(this.notificationController, this.authMiddleware),
     );
 
     this.express.use(

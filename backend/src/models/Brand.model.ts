@@ -5,19 +5,27 @@ export interface Brand {
   role: UserRole.Brand;
   fullName: string;
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
   city: string;
   brandName: string;
   brandType: string;
-  instagramHandle?: string;
   isEmailVerified: boolean;
   refreshToken?: string | null;
   authProvider: AuthProvider;
+  authProviders: AuthProvider[];
   googleId?: string;
   googleEmail?: string;
   googleConnected: boolean;
+  instagramId?: string;
+  instagramHandle?: string;
+  instagramFollowers?: number;
+  instagramBio?: string;
+  instagramConnected: boolean;
+  instagramAccessToken?: string;
+  instagramTokenExpiresAt?: Date;
   profilePhotoUrl?: string;
   isProfileComplete: boolean;
+  rawSocialProfile?: Record<string, unknown>;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -35,11 +43,10 @@ const brandSchema = new Schema<Brand>(
     },
     fullName: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
-    passwordHash: { type: String, required: true, select: false },
+    passwordHash: { type: String, default: null, select: false },
     city: { type: String, required: true, trim: true },
     brandName: { type: String, required: true, trim: true },
     brandType: { type: String, required: true, trim: true },
-    instagramHandle: { type: String, trim: true },
     isEmailVerified: { type: Boolean, default: false },
     refreshToken: { type: String, default: null, select: false },
     authProvider: {
@@ -48,11 +55,20 @@ const brandSchema = new Schema<Brand>(
       default: AuthProvider.Email,
       required: true,
     },
+    authProviders: { type: [String], enum: Object.values(AuthProvider), default: [] },
     googleId: { type: String, sparse: true, unique: true },
     googleEmail: { type: String, lowercase: true, trim: true },
     googleConnected: { type: Boolean, default: false },
+    instagramId: { type: String, sparse: true, unique: true },
+    instagramHandle: { type: String, trim: true },
+    instagramFollowers: { type: Number, min: 0 },
+    instagramBio: { type: String },
+    instagramConnected: { type: Boolean, default: false },
+    instagramAccessToken: { type: String, select: false },
+    instagramTokenExpiresAt: { type: Date },
     profilePhotoUrl: { type: String },
     isProfileComplete: { type: Boolean, default: false },
+    rawSocialProfile: { type: Schema.Types.Mixed, select: false },
   },
   {
     timestamps: true,

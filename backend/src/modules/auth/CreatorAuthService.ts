@@ -4,10 +4,18 @@ import type { IOtpService } from "../../core/interfaces/IOtpService";
 import type { IEmailService } from "../../core/interfaces/IEmailService";
 import type { IEventPublisher } from "../../core/interfaces/IEventPublisher";
 import type { IAuthStrategy } from "../../core/interfaces/IAuthStrategy";
+import type { ISocialAuthStrategy } from "../../core/interfaces/ISocialAuthStrategy";
+import type { IOAuthStateService } from "../../core/interfaces/IOAuthStateService";
+import type { IAccountLookupRepository } from "../../core/interfaces/IAccountLookupRepository";
+import { SocialProvider } from "../../core/types";
+import { AuthError } from "../../core/errors/AuthError";
 import { ConflictError } from "../../core/errors/ConflictError";
 import { UserRole, AuthProvider } from "../../core/types";
-import type { AuthDocument } from "../../core/types";
-import type { CreatorRepository } from "../../infrastructure/repositories/CreatorRepository";
+import type { AuthDocument, SocialProfile, WriteData } from "../../core/types";
+import type { Creator } from "../../models/Creator.model";
+import type { ICreatorRepository } from "../../core/interfaces/ICreatorRepository";
+import { EncryptionService } from "../../utils/crypto";
+import { env } from "../../config/env";
 import { BaseAuthService } from "./BaseAuthService";
 import { BCRYPT_SALT_ROUNDS } from "./auth.constants";
 import { AuthEvent } from "../../config/config.constants";
@@ -17,14 +25,19 @@ export class CreatorAuthService extends BaseAuthService {
   protected readonly role: UserRole = UserRole.Creator;
 
   constructor(
-    private readonly creatorRepository: CreatorRepository,
+    private readonly creatorRepository: ICreatorRepository,
     tokenService: ITokenService,
     otpService: IOtpService,
     emailService: IEmailService,
     eventPublisher: IEventPublisher,
     strategy: IAuthStrategy,
+    googleStrategy: ISocialAuthStrategy,
+    instagramStrategy: ISocialAuthStrategy,
+    oauthStateService: IOAuthStateService,
+    accountLookup: IAccountLookupRepository,
+    youtubeStrategy: ISocialAuthStrategy,
   ) {
-    super(tokenService, otpService, emailService, eventPublisher, strategy);
+    super(tokenService, otpService, emailService, eventPublisher, strategy, googleStrategy, instagramStrategy, oauthStateService, accountLookup, youtubeStrategy);
   }
 
   async register(data: CreatorRegisterInput): Promise<void> {
@@ -52,6 +65,8 @@ export class CreatorAuthService extends BaseAuthService {
       niche: data.niche,
       isEmailVerified: false,
       authProvider: AuthProvider.Email,
+      authProviders: [AuthProvider.Email],
+      isProfileComplete: true,
     });
 
     await this.sendRegistrationOtp(creator.email);
@@ -82,7 +97,70 @@ export class CreatorAuthService extends BaseAuthService {
     await this.creatorRepository.updateById(userId, { isEmailVerified: true });
   }
 
-  protected async crossRoleEmailExists(email: string): Promise<boolean> {
-    return this.creatorRepository.emailExistsAcrossRoles(email);
+  protected async findUserBySocialId(provider: SocialProvider, providerId: string): Promise<AuthDocument | null> {
+    if (provider === SocialProvider.Google) return this.creatorRepository.findByGoogleId(providerId);
+    if (provider === SocialProvider.Youtube) return this.creatorRepository.findByYoutubeChannelId(providerId);
+    return this.creatorRepository.findByInstagramId(providerId);
+  }
+
+  protected async createSocialUser(profile: SocialProfile): Promise<AuthDocument> {
+    if (!profile.email) {
+      throw new AuthError("Email is required to create user");
+    }
+
+    if (profile.provider === SocialProvider.Google) {
+      return this.creatorRepository.create({
+        role: UserRole.Creator,
+        fullName: profile.fullName,
+        email: profile.email,
+        passwordHash: null,
+        googleId: profile.providerId,
+        googleConnected: true,
+        authProvider: AuthProvider.Google,
+        authProviders: [AuthProvider.Google],
+        isEmailVerified: true,
+        isProfileComplete: false,
+        rawSocialProfile: profile.rawProfile,
+      });
+    }
+
+    const encryptedToken = profile.instagramAccessToken
+      ? EncryptionService.encryptToken(profile.instagramAccessToken, env.INSTAGRAM_TOKEN_ENCRYPTION_KEY)
+      : undefined;
+
+    return this.creatorRepository.create({
+      role: UserRole.Creator,
+      fullName: profile.fullName,
+      email: profile.email,
+      passwordHash: null,
+      instagramId: profile.providerId,
+      instagramConnected: true,
+      instagramVerified: true,
+      instagramHandle: profile.instagramHandle ?? undefined,
+      instagramFollowers: profile.instagramFollowers ?? undefined,
+      instagramBio: profile.instagramBio ?? undefined,
+      instagramProfilePicUrl: profile.profilePhotoUrl ?? undefined,
+      instagramAccessToken: encryptedToken,
+      instagramTokenExpiresAt: profile.instagramTokenExpiresAt ?? undefined,
+      authProvider: AuthProvider.Instagram,
+      authProviders: [AuthProvider.Instagram],
+      isEmailVerified: false,
+      isProfileComplete: false,
+      rawSocialProfile: profile.rawProfile,
+    });
+  }
+
+  protected async linkSocialProviderInDb(
+    userId: string,
+    data: Partial<Record<string, unknown>>,
+  ): Promise<void> {
+    await this.creatorRepository.linkSocialProvider(userId, data as Partial<Creator>);
+  }
+
+  protected async completeSocialProfileInDb(
+    userId: string,
+    data: Partial<Record<string, unknown>>,
+  ): Promise<AuthDocument | null> {
+    return this.creatorRepository.updateById(userId, { ...data, isProfileComplete: true } as WriteData<Creator>);
   }
 }

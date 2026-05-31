@@ -1,6 +1,5 @@
 import type { EscrowDocument } from "../../models/Escrow.model";
-import type { CollabRoomDocument } from "../../models/CollabRoom.model";
-import type { EscrowBrandView, EscrowCreatorView, CollabRoomView } from "./escrow.types";
+import type { EscrowBrandView, EscrowCreatorView } from "./escrow.types";
 
 export class EscrowMapper {
   static toBrandView(escrow: EscrowDocument): EscrowBrandView {
@@ -49,23 +48,6 @@ export class EscrowMapper {
       collabDeadline: escrow.collabDeadline,
       createdAt: escrow.createdAt ?? new Date(),
       updatedAt: escrow.updatedAt ?? new Date(),
-    };
-  }
-
-  static toCollabRoomView(room: CollabRoomDocument): CollabRoomView {
-    return {
-      _id: room._id.toString(),
-      escrowId: room.escrowId.toString(),
-      bidId: room.bidId.toString(),
-      campaignId: room.campaignId.toString(),
-      brandId: room.brandId.toString(),
-      creatorId: room.creatorId.toString(),
-      status: room.status,
-      maxRevisions: room.maxRevisions,
-      revisionCount: room.revisionCount,
-      collabDeadline: room.collabDeadline,
-      createdAt: room.createdAt ?? new Date(),
-      updatedAt: room.updatedAt ?? new Date(),
     };
   }
 }

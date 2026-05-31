@@ -9,3 +9,7 @@ export const DEFAULT_PAGE = 1;
 export const DEFAULT_LIMIT = 20;
 export const MAX_LIMIT = 50;
 export const MAX_COMPARE_BIDS = 5;
+
+// Fallback values when an enriched relation can't be resolved.
+export const UNKNOWN_BRAND_NAME = "Unknown Brand";
+export const UNKNOWN_PLATFORM = "unknown";

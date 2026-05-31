@@ -1,8 +1,10 @@
-import type { SafeUser } from "../../core/types";
+import type { SafeUser, SocialAuthStatus } from "../../core/types";
 
 export interface AuthResult {
-  accessToken: string;
-  refreshToken: string;
+  status?: SocialAuthStatus;
+  accessToken: string | null;
+  refreshToken: string | null;
+  intermediateToken?: string | null;
   user: SafeUser;
 }
 

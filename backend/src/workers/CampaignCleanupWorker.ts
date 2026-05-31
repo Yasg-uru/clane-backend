@@ -1,6 +1,6 @@
 import type { ConsumeMessage } from "amqplib";
 import type { RabbitMQConnection } from "../config/RabbitMQConnection";
-import type { CreatorCampaignMatchRepository } from "../infrastructure/repositories/CreatorCampaignMatchRepository";
+import type { ICreatorCampaignMatchRepository } from "../core/interfaces/ICreatorCampaignMatchRepository";
 import { CAMPAIGN_EXCHANGE_NAME, CampaignEvent } from "../config/config.constants";
 import { logger } from "../utils/logger";
 import { BaseWorker } from "./BaseWorker";
@@ -12,7 +12,7 @@ export class CampaignCleanupWorker extends BaseWorker {
   protected readonly prefetch = 10;
 
   constructor(
-    private readonly creatorCampaignMatchRepository: CreatorCampaignMatchRepository,
+    private readonly creatorCampaignMatchRepository: ICreatorCampaignMatchRepository,
     rabbitMQ: RabbitMQConnection,
   ) {
     super(rabbitMQ);
