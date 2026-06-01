@@ -80,7 +80,11 @@ export class App {
   }
 
   private initialiseRoutes(): void {
-    this.express.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+    this.express.use(
+      "/api/docs",
+      swaggerUi.serve,
+      swaggerUi.setup(swaggerSpec, { swaggerOptions: { persistAuthorization: true } }),
+    );
 
     this.express.get("/health", (_req, res) => {
       res.status(200).json(

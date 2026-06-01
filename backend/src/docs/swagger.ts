@@ -37,7 +37,9 @@ export const swaggerSpec = {
         type: "http",
         scheme: "bearer",
         bearerFormat: "JWT",
-        description: "15-minute access token returned by /auth/login or /auth/refresh",
+        description:
+          "15-minute access token returned by /auth/login or /auth/refresh.\n\n" +
+          "**Paste only the raw JWT** (e.g. `eyJhbGci...`) — do NOT include the `Bearer ` prefix. Swagger adds it automatically.",
       },
     },
     schemas: {
