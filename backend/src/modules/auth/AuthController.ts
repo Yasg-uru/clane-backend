@@ -9,8 +9,10 @@ import {
   brandRegisterSchema,
   creatorCompleteProfileSchema,
   creatorRegisterSchema,
+  forgotPasswordSchema,
   loginSchema,
   resendOtpSchema,
+  resetPasswordSchema,
   socialCallbackSchema,
   submitInstagramEmailSchema,
   verifyOtpSchema,
@@ -90,6 +92,22 @@ export class AuthController {
     const payload = resendOtpSchema.parse(req.body);
     await this.getService(payload.role).resendOtp(payload);
     res.status(200).json(new ApiResponse("OTP resent", { email: payload.email }));
+  });
+
+  forgotPassword = AsyncHandler.wrap(async (req, res) => {
+    const payload = forgotPasswordSchema.parse(req.body);
+    await this.getService(payload.role).forgotPassword(payload);
+    res
+      .status(200)
+      .json(
+        new ApiResponse("If that email is registered, a reset link has been sent", {}),
+      );
+  });
+
+  resetPassword = AsyncHandler.wrap(async (req, res) => {
+    const payload = resetPasswordSchema.parse(req.body);
+    await this.getService(payload.role).resetPassword(payload);
+    res.status(200).json(new ApiResponse("Password reset successfully", {}));
   });
 
   // ─── Social auth ──────────────────────────────────────────────────────────

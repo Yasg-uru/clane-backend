@@ -23,4 +23,5 @@ export interface IAuthRepository<TDoc, TEntity = TDoc> extends IRepository<TDoc,
   findByEmailWithSecrets(email: string): Promise<TDoc | null>;
   findByIdWithRefreshToken(id: string): Promise<TDoc | null>;
   emailExists(email: string): Promise<boolean>;
+  updatePasswordHash(userId: string, hash: string): Promise<void>;
 }

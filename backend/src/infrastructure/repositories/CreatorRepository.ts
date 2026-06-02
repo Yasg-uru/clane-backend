@@ -62,6 +62,10 @@ export class CreatorRepository
     await CreatorModel.findByIdAndUpdate(userId, { isProfileComplete: true }).exec();
   }
 
+  async updatePasswordHash(userId: string, hash: string): Promise<void> {
+    await CreatorModel.findByIdAndUpdate(userId, { passwordHash: hash }).exec();
+  }
+
   async updateInstagramPlatformData(creatorId: string, data: InstagramPlatformData): Promise<void> {
     await CreatorModel.findByIdAndUpdate(creatorId, data).exec();
   }

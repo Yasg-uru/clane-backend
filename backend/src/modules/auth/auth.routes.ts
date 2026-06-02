@@ -17,6 +17,8 @@ export const createAuthRouter = (
   router.post("/refresh", controller.refresh);
   router.post("/logout", authMiddleware.authenticate, controller.logout);
   router.post("/resend-otp", controller.resendOtp);
+  router.post("/forgot-password", controller.forgotPassword);
+  router.post("/reset-password", controller.resetPassword);
 
   // Social auth — initiate OAuth login
   router.get(

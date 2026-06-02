@@ -8,4 +8,6 @@ export interface IOtpService {
   trackAttempts(role: UserRole, email: string): Promise<number>;
   checkCooldown(role: UserRole, email: string): Promise<boolean>;
   setCooldown(role: UserRole, email: string): Promise<void>;
+  generatePasswordResetToken(role: UserRole, userId: string): Promise<string>;
+  verifyAndConsumePasswordResetToken(token: string): Promise<{ role: UserRole; userId: string } | null>;
 }

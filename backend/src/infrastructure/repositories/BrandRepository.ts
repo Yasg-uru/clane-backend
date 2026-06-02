@@ -43,6 +43,10 @@ export class BrandRepository
     await BrandModel.findByIdAndUpdate(userId, { isProfileComplete: true }).exec();
   }
 
+  async updatePasswordHash(userId: string, hash: string): Promise<void> {
+    await BrandModel.findByIdAndUpdate(userId, { passwordHash: hash }).exec();
+  }
+
   async create(data: WriteData<Brand>): Promise<BrandDocument> {
     return BrandModel.create(data);
   }

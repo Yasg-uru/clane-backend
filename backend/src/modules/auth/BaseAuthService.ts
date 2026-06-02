@@ -26,7 +26,13 @@ import { EncryptionService } from "../../utils/crypto";
 import { env } from "../../config/env";
 import type { AuthResult, RefreshResult } from "./auth.types";
 import { AuthMapper } from "./AuthMapper";
-import type { LoginInput, ResendOtpInput, VerifyOtpInput } from "./auth.validator";
+import type {
+  ForgotPasswordInput,
+  LoginInput,
+  ResendOtpInput,
+  ResetPasswordInput,
+  VerifyOtpInput,
+} from "./auth.validator";
 import { INSTAGRAM_TOKEN_EXPIRY_WARNING_MS } from "./social-auth.constants";
 import { CreatorEvent, CREATOR_EXCHANGE_NAME } from "../../config/config.constants";
 
@@ -58,6 +64,7 @@ export abstract class BaseAuthService {
     userId: string,
     data: Partial<Record<string, unknown>>,
   ): Promise<AuthDocument | null>;
+  protected abstract updatePasswordHash(userId: string, hash: string): Promise<void>;
 
   // ─── Shared concrete helpers ──────────────────────────────────────────────
 
@@ -183,6 +190,36 @@ export abstract class BaseAuthService {
     const otp = await this.otpService.generate(this.role, data.email);
     await this.otpService.setCooldown(this.role, data.email);
     await this.emailService.sendOtp(data.email, otp);
+  }
+
+  // ─── Password reset ───────────────────────────────────────────────────────
+
+  async forgotPassword(data: ForgotPasswordInput): Promise<void> {
+    const user = await this.findUserWithSecrets(data.email);
+
+    // Always exit silently — prevents email enumeration.
+    // Only proceed for email-registered, verified users who have a password set.
+    if (!user || !user.isEmailVerified || !user.passwordHash) return;
+
+    const rawToken = await this.otpService.generatePasswordResetToken(
+      this.role,
+      user._id.toString(),
+    );
+    const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${rawToken}&role=${this.role}`;
+    await this.emailService.sendPasswordReset(data.email, resetUrl);
+  }
+
+  async resetPassword(data: ResetPasswordInput): Promise<void> {
+    const result = await this.otpService.verifyAndConsumePasswordResetToken(data.token);
+
+    if (!result || result.role !== this.role) {
+      throw new AuthError("Invalid or expired reset link");
+    }
+
+    const passwordHash = await this.strategy.hashPassword(data.newPassword);
+    await this.updatePasswordHash(result.userId, passwordHash);
+    // Invalidate all active sessions — forces re-login on all devices.
+    await this.updateUserRefreshToken(result.userId, null);
   }
 
   // ─── Social auth ──────────────────────────────────────────────────────────

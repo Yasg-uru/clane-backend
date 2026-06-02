@@ -97,6 +97,10 @@ export class CreatorAuthService extends BaseAuthService {
     await this.creatorRepository.updateById(userId, { isEmailVerified: true });
   }
 
+  protected async updatePasswordHash(userId: string, hash: string): Promise<void> {
+    await this.creatorRepository.updatePasswordHash(userId, hash);
+  }
+
   protected async findUserBySocialId(provider: SocialProvider, providerId: string): Promise<AuthDocument | null> {
     if (provider === SocialProvider.Google) return this.creatorRepository.findByGoogleId(providerId);
     if (provider === SocialProvider.Youtube) return this.creatorRepository.findByYoutubeChannelId(providerId);

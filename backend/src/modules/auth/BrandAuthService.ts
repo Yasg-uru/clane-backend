@@ -97,6 +97,10 @@ export class BrandAuthService extends BaseAuthService {
     await this.brandRepository.updateById(userId, { isEmailVerified: true });
   }
 
+  protected async updatePasswordHash(userId: string, hash: string): Promise<void> {
+    await this.brandRepository.updatePasswordHash(userId, hash);
+  }
+
   protected async findUserBySocialId(provider: SocialProvider, providerId: string): Promise<AuthDocument | null> {
     if (provider === SocialProvider.Google) return this.brandRepository.findByGoogleId(providerId);
     return this.brandRepository.findByInstagramId(providerId);

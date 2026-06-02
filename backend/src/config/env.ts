@@ -56,4 +56,5 @@ export const env = cleanEnv(process.env, {
   RAZORPAY_ACCOUNT_NUMBER: str(),
   PAYMENT_TIMEOUT_HOURS: num({ default: 24 }),
   FRONTEND_PAYMENT_URL: url(),
+  FRONTEND_URL: url({ default: "http://localhost:3000" }),
 });

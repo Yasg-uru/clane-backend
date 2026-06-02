@@ -121,6 +121,17 @@ export const creatorCompleteProfileSchema = z.object({
     .optional(),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+  role: roleSchema,
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Reset token is required"),
+  newPassword: passwordSchema,
+  role: roleSchema,
+});
+
 export type BrandRegisterInput = z.infer<typeof brandRegisterSchema>;
 export type CreatorRegisterInput = z.infer<typeof creatorRegisterSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
@@ -130,3 +141,5 @@ export type SocialCallbackInput = z.infer<typeof socialCallbackSchema>;
 export type SubmitInstagramEmailInput = z.infer<typeof submitInstagramEmailSchema>;
 export type BrandCompleteProfileInput = z.infer<typeof brandCompleteProfileSchema>;
 export type CreatorCompleteProfileInput = z.infer<typeof creatorCompleteProfileSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
