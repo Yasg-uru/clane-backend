@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { createQueryClient } from "@/lib/query/query-client";
 import { useSessionHydration } from "@/hooks/auth/useSession";
+import { GradientThemeInjector } from "@/components/common/gradient-theme-injector";
 
 function SessionHydrator() {
   useSessionHydration();
@@ -19,6 +20,7 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <GradientThemeInjector />
         <SessionHydrator />
         {children}
         <Toaster richColors position="top-right" />

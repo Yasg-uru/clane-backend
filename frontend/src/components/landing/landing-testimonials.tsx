@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { Star, Quote } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { GradientOrb } from "@/components/common/gradient-orb";
 import { cn } from "@/lib/utils";
 
 type UserRole = "Brand" | "Creator";
@@ -121,8 +122,12 @@ function TestimonialCard({ testimonial, index }: TestimonialCardProps): ReactEle
 
 export function LandingTestimonials(): ReactElement {
   return (
-    <section id="testimonials" className="py-24 md:py-32">
-      <div className="mx-auto max-w-7xl px-6">
+    <section id="testimonials" className="relative overflow-hidden py-24 md:py-32">
+      {/* Gradient smoke */}
+      <GradientOrb color="to"   className="-right-32 top-0 h-[450px] w-[450px] opacity-[0.07] blur-[110px] dark:opacity-[0.14]" />
+      <GradientOrb color="from" className="-left-32 bottom-0 h-[400px] w-[400px] opacity-[0.06] blur-[100px] animate-pulse-glow dark:opacity-[0.12]" />
+      <GradientOrb color="via"  className="right-1/3 bottom-1/4 h-[250px] w-[250px] opacity-[0.05] blur-[70px] dark:opacity-[0.09]" />
+      <div className="relative mx-auto max-w-7xl px-6">
         <div className="mb-16 text-center">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Real Results

@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { CheckCircle, Megaphone, PenLine, Search, Trophy, Wallet } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { GradientOrb } from "@/components/common/gradient-orb";
 import { cn } from "@/lib/utils";
 
 type Step = {
@@ -89,8 +90,13 @@ function StepRow({ step, index, isLast }: StepRowProps): ReactElement {
 
 export function LandingHowItWorks(): ReactElement {
   return (
-    <section id="how-it-works" className="py-24 md:py-32">
-      <div className="mx-auto max-w-7xl px-6">
+    <section id="how-it-works" className="relative overflow-hidden py-24 md:py-32">
+      {/* Gradient smoke */}
+      <GradientOrb color="via"  className="-left-40 top-1/2 h-[500px] w-[500px] -translate-y-1/2 opacity-[0.07] blur-[120px] dark:opacity-[0.13]" />
+      <GradientOrb color="to"   className="-right-40 top-1/3 h-[400px] w-[400px] opacity-[0.06] blur-[100px] dark:opacity-[0.11]" />
+      <GradientOrb color="from" className="bottom-0 left-1/2 h-[300px] w-[300px] -translate-x-1/2 opacity-[0.05] blur-[80px] dark:opacity-[0.09]" />
+
+      <div className="relative mx-auto max-w-7xl px-6">
         {/* Header */}
         <div className="mb-16 text-center">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">

@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
+import { GradientOrb } from "@/components/common/gradient-orb";
 import { ROUTES } from "@/config/routes.config";
 import { APP_CONFIG } from "@/config/app.config";
 
@@ -45,8 +46,12 @@ const footerSections: FooterSection[] = [
 
 export function LandingFooter(): ReactElement {
   return (
-    <footer className="bg-background border-t border-border">
-      <div className="mx-auto max-w-7xl px-6 py-14">
+    <footer className="relative overflow-hidden bg-background border-t border-border">
+      {/* Gradient smoke */}
+      <GradientOrb color="from" className="-left-24 -top-16 h-[300px] w-[300px] opacity-[0.06] blur-[90px] dark:opacity-[0.11]" />
+      <GradientOrb color="to"   className="-right-24 bottom-0 h-[280px] w-[280px] opacity-[0.05] blur-[80px] dark:opacity-[0.10]" />
+
+      <div className="relative mx-auto max-w-7xl px-6 py-14">
         {/* Top grid */}
         <div className="mb-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand column */}

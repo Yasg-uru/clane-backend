@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { GradientOrb } from "@/components/common/gradient-orb";
 import { ROUTES } from "@/config/routes.config";
 
 type AuthShellProps = {
@@ -14,9 +15,10 @@ export function AuthShell({ panel, children }: AuthShellProps): ReactElement {
       {/* ── Left: Branded panel ── */}
       <div className="relative hidden overflow-hidden lg:flex lg:w-[52%] xl:w-[55%] auth-panel-bg">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-32 top-1/4 h-[520px] w-[520px] rounded-full bg-ig-purple/12 blur-[130px] animate-pulse-glow dark:bg-ig-purple/25" />
-          <div className="absolute -bottom-24 right-0 h-[420px] w-[420px] rounded-full bg-ig-orange/8 blur-[100px] animate-pulse-glow delay-neg-2s dark:bg-ig-orange/18" />
-          <div className="absolute right-1/4 top-1/3 h-[250px] w-[250px] rounded-full bg-ig-red/6 blur-[70px] dark:bg-ig-red/12" />
+          <GradientOrb color="from" className="-left-32 top-1/4 h-[520px] w-[520px] opacity-[0.13] blur-[130px] animate-pulse-glow dark:opacity-[0.26]" />
+          <GradientOrb color="to"   className="-bottom-24 right-0 h-[420px] w-[420px] opacity-[0.09] blur-[100px] animate-pulse-glow delay-neg-2s dark:opacity-[0.20]" />
+          <GradientOrb color="via"  className="right-1/4 top-1/3 h-[250px] w-[250px] opacity-[0.07] blur-[70px] dark:opacity-[0.14]" />
+          <GradientOrb color="from" className="left-1/2 bottom-1/4 h-[200px] w-[200px] opacity-[0.06] blur-[60px] animate-pulse-glow delay-neg-1s dark:opacity-[0.12]" />
           <div className="absolute inset-0 opacity-[0.04] adaptive-grid-overlay dark:opacity-[0.05] dark:hero-grid-overlay" />
         </div>
         <div className="relative z-10 flex h-full w-full flex-col justify-between p-12 xl:p-16">
@@ -26,10 +28,11 @@ export function AuthShell({ panel, children }: AuthShellProps): ReactElement {
 
       {/* ── Right: Form area ── */}
       <div className="relative flex flex-1 flex-col overflow-hidden bg-background">
-        {/* Ambient glow — gives the form area some atmosphere */}
+        {/* Ambient smoke — form side */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-          <div className="absolute -right-20 -top-10 h-[380px] w-[380px] rounded-full bg-ig-purple/5 blur-[110px] dark:bg-ig-purple/12 animate-pulse-glow" />
-          <div className="absolute -bottom-16 left-1/4 h-[300px] w-[300px] rounded-full bg-ig-orange/4 blur-[90px] dark:bg-ig-orange/10 animate-pulse-glow delay-neg-2s" />
+          <GradientOrb color="from" className="-right-20 -top-10 h-[380px] w-[380px] opacity-[0.06] blur-[110px] animate-pulse-glow dark:opacity-[0.14]" />
+          <GradientOrb color="to"   className="-bottom-16 left-1/4 h-[300px] w-[300px] opacity-[0.05] blur-[90px] animate-pulse-glow delay-neg-2s dark:opacity-[0.11]" />
+          <GradientOrb color="via"  className="left-0 top-1/2 h-[200px] w-[200px] opacity-[0.04] blur-[70px] dark:opacity-[0.09]" />
         </div>
 
         {/* Mobile: back to home */}

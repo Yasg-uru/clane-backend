@@ -47,12 +47,17 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* Instagram gradient palette */
+  /* Instagram gradient palette (kept for backward compat) */
   --color-ig-purple: oklch(0.45 0.22 296);
   --color-ig-red: oklch(0.55 0.24 27);
   --color-ig-orange: oklch(0.78 0.17 70);
   --color-hero-bg: oklch(0.07 0.01 270);
   --color-hero-surface: oklch(0.11 0.01 270);
+
+  /* Dynamic gradient theme — overridden at runtime by GradientThemeInjector */
+  --grad-from: oklch(0.45 0.22 296);
+  --grad-via: oklch(0.55 0.24 27);
+  --grad-to: oklch(0.78 0.17 70);
 }
 
 :root {
@@ -219,18 +224,18 @@
   .delay-neg-35s { animation-delay: -3.5s; }
   .delay-neg-1s  { animation-delay: -1s; }
 
-  /* Instagram gradient text */
+  /* Gradient text — uses active theme */
   .text-gradient-ig {
-    background: linear-gradient(135deg, var(--color-ig-purple), var(--color-ig-red), var(--color-ig-orange));
+    background: linear-gradient(135deg, var(--grad-from), var(--grad-via), var(--grad-to));
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     color: transparent;
   }
 
-  /* Animated gradient text */
+  /* Animated gradient text — uses active theme */
   .text-gradient-ig-anim {
-    background: linear-gradient(135deg, var(--color-ig-purple), var(--color-ig-red), var(--color-ig-orange), var(--color-ig-purple));
+    background: linear-gradient(135deg, var(--grad-from), var(--grad-via), var(--grad-to), var(--grad-from));
     background-size: 300% 100%;
     background-clip: text;
     -webkit-background-clip: text;
@@ -239,13 +244,13 @@
     animation: gradient-shift 5s ease infinite;
   }
 
-  /* Instagram gradient backgrounds */
+  /* Gradient backgrounds — use active theme */
   .bg-gradient-ig {
-    background: linear-gradient(135deg, var(--color-ig-purple), var(--color-ig-red), var(--color-ig-orange));
+    background: linear-gradient(135deg, var(--grad-from), var(--grad-via), var(--grad-to));
   }
 
   .bg-gradient-ig-animated {
-    background: linear-gradient(135deg, var(--color-ig-purple), var(--color-ig-red), var(--color-ig-orange), var(--color-ig-purple));
+    background: linear-gradient(135deg, var(--grad-from), var(--grad-via), var(--grad-to), var(--grad-from));
     background-size: 300% 300%;
     animation: gradient-shift 6s ease infinite;
   }
@@ -253,6 +258,11 @@
   /* Hero section */
   .bg-hero-bg      { background-color: var(--color-hero-bg); }
   .bg-hero-surface { background-color: var(--color-hero-surface); }
+
+  /* Gradient smoke orbs — theme-aware, resolved at paint time */
+  .smoke-from { background: var(--grad-from); }
+  .smoke-via  { background: var(--grad-via); }
+  .smoke-to   { background: var(--grad-to); }
 
   /* Glass morphism */
   .glass {
@@ -269,22 +279,22 @@
     border: 1px solid oklch(1 0 0 / 8%);
   }
 
-  /* Navbar rotating border — spinning conic gradient layer */
+  /* Navbar rotating border — spinning conic gradient layer (uses active theme) */
   .navbar-spin-gradient {
     background: conic-gradient(
       from 0deg,
       transparent 0deg,
       transparent 200deg,
-      oklch(0.45 0.22 296 / 0.9) 248deg,
-      oklch(0.55 0.24 27  / 0.9) 292deg,
-      oklch(0.78 0.17 70  / 0.8) 328deg,
+      color-mix(in oklch, var(--grad-from) 90%, transparent) 248deg,
+      color-mix(in oklch, var(--grad-via) 90%, transparent) 292deg,
+      color-mix(in oklch, var(--grad-to) 80%, transparent) 328deg,
       transparent 360deg
     );
   }
 
-  /* Gradient ring (Instagram Stories style) */
+  /* Gradient ring (Instagram Stories style) — uses active theme */
   .ring-gradient-ig {
-    background: linear-gradient(135deg, var(--color-ig-purple), var(--color-ig-red), var(--color-ig-orange));
+    background: linear-gradient(135deg, var(--grad-from), var(--grad-via), var(--grad-to));
     padding: 2px;
   }
 
@@ -304,13 +314,13 @@
     background-size: 56px 56px;
   }
 
-  /* Auth left panel — gradient in light, dark in dark */
+  /* Auth left panel — gradient in light, dark in dark (uses active theme) */
   .auth-panel-bg {
     background: linear-gradient(
       145deg,
-      oklch(0.45 0.22 296 / 0.07),
+      color-mix(in oklch, var(--grad-from) 7%, transparent),
       var(--background) 50%,
-      oklch(0.78 0.17 70 / 0.05)
+      color-mix(in oklch, var(--grad-to) 5%, transparent)
     );
     border-right: 1px solid oklch(0.922 0 0);
   }

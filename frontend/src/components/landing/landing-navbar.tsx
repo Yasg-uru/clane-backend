@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/common/theme-toggle";
+import { GradientThemePicker } from "@/components/common/gradient-theme-picker";
 import { ROUTES } from "@/config/routes.config";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +60,7 @@ export function LandingNavbar(): ReactElement {
 
             {/* Right actions */}
             <div className="flex items-center gap-1">
+              <GradientThemePicker />
               <ThemeToggle />
               <Link
                 href={ROUTES.auth.login}

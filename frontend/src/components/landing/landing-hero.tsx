@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight, Briefcase, TrendingUp, Users, Zap } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { GradientOrb } from "@/components/common/gradient-orb";
 import { ROUTES } from "@/config/routes.config";
 import { cn } from "@/lib/utils";
 
@@ -100,11 +101,12 @@ export function LandingHero(): ReactElement {
   return (
     <section className="relative min-h-[100svh] flex flex-col items-center justify-center overflow-hidden bg-background pt-24 pb-20">
 
-      {/* ── Animated gradient blobs (more subtle in light mode) ── */}
+      {/* ── Animated gradient smoke ── */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-32 -top-32 h-[600px] w-[600px] rounded-full bg-ig-purple/10 blur-[120px] animate-pulse-glow dark:bg-ig-purple/20" />
-        <div className="absolute -bottom-40 -right-32 h-[500px] w-[500px] rounded-full bg-ig-orange/8 blur-[100px] animate-pulse-glow delay-neg-2s dark:bg-ig-orange/15" />
-        <div className="absolute left-1/2 top-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-ig-red/6 blur-[80px] dark:bg-ig-red/10" />
+        <GradientOrb color="from" className="-left-32 -top-32 h-[650px] w-[650px] opacity-[0.12] blur-[130px] animate-pulse-glow dark:opacity-[0.22]" />
+        <GradientOrb color="to"   className="-bottom-40 -right-32 h-[550px] w-[550px] opacity-[0.09] blur-[110px] animate-pulse-glow delay-neg-2s dark:opacity-[0.18]" />
+        <GradientOrb color="via"  className="left-1/2 top-1/2 h-[350px] w-[350px] -translate-x-1/2 -translate-y-1/2 opacity-[0.07] blur-[90px] dark:opacity-[0.12]" />
+        <GradientOrb color="from" className="right-1/4 top-1/4 h-[280px] w-[280px] opacity-[0.06] blur-[80px] animate-pulse-glow delay-neg-35s dark:opacity-[0.10]" />
         <div className="absolute inset-0 opacity-[0.05] adaptive-grid-overlay dark:opacity-[0.06] dark:hero-grid-overlay" />
       </div>
 

@@ -1,5 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { BarChart3, Globe, Shield, Target, Users, Zap } from "lucide-react";
+import { GradientOrb } from "@/components/common/gradient-orb";
 import { cn } from "@/lib/utils";
 
 type Feature = {
@@ -95,11 +96,12 @@ function FeatureCard({ feature, index }: FeatureCardProps): ReactElement {
 export function LandingFeatures(): ReactElement {
   return (
     <section id="features" className="relative overflow-hidden py-24 md:py-32">
-      {/* Faint background gradient */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-muted/20"
-      />
+      {/* Faint background tint */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-muted/20" />
+      {/* Gradient smoke */}
+      <GradientOrb color="from" className="-right-32 -top-24 h-[500px] w-[500px] opacity-[0.08] blur-[120px] animate-pulse-glow dark:opacity-[0.16]" />
+      <GradientOrb color="to"   className="-left-24 bottom-0 h-[400px] w-[400px] opacity-[0.07] blur-[100px] animate-pulse-glow delay-neg-2s dark:opacity-[0.14]" />
+      <GradientOrb color="via"  className="left-1/2 top-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 opacity-[0.05] blur-[80px] dark:opacity-[0.09]" />
 
       <div className="mx-auto max-w-7xl px-6">
         <div className="mb-16 text-center">
