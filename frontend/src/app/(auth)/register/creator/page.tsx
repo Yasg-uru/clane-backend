@@ -1,45 +1,51 @@
 import type { Metadata } from "next";
+import type { ReactElement } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { AuthPanelCreator } from "@/components/auth/auth-panel-creator";
 import { RegisterCreatorForm } from "@/components/auth/register-creator-form";
-import { Logo } from "@/components/common/logo";
 import { ROUTES } from "@/config/routes.config";
 
 export const metadata: Metadata = { title: "Register as Creator" };
 
-export default function RegisterCreatorPage() {
+export default function RegisterCreatorPage(): ReactElement {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-12">
-      <div className="w-full max-w-lg space-y-6">
-        <Logo className="mx-auto justify-center" />
+    <AuthShell panel={<AuthPanelCreator />}>
+      <div className="space-y-7">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Join as a Creator</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Discover brand campaigns and grow your earning potential
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Join as a Creator</CardTitle>
-            <CardDescription>
-              Discover brand campaigns and grow your influence
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        {/* Form card — gradient border */}
+        <div className="ring-gradient-ig rounded-2xl shadow-lg shadow-ig-purple/10 dark:shadow-ig-purple/20">
+          <div className="rounded-2xl bg-background/95 p-7 backdrop-blur-sm dark:bg-card/90">
             <RegisterCreatorForm />
-            <p className="mt-4 text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link href={ROUTES.auth.login} className="font-medium text-primary hover:underline">
-                Sign in
-              </Link>
-            </p>
-            <p className="mt-2 text-center text-sm text-muted-foreground">
-              Are you a brand?{" "}
-              <Link
-                href={ROUTES.auth.registerBrand}
-                className="font-medium text-primary hover:underline"
-              >
-                Register as Brand
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+
+        {/* Footer links */}
+        <div className="space-y-2 text-center text-sm text-muted-foreground">
+          <p>
+            Already have an account?{" "}
+            <Link href={ROUTES.auth.login} className="font-semibold text-foreground hover:underline">
+              Sign in
+            </Link>
+          </p>
+          <p>
+            Are you a brand?{" "}
+            <Link
+              href={ROUTES.auth.registerBrand}
+              className="font-semibold text-foreground hover:underline"
+            >
+              Register as Brand
+            </Link>
+          </p>
+        </div>
       </div>
-    </div>
+    </AuthShell>
   );
 }

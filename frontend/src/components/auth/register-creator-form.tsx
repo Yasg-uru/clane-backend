@@ -29,10 +29,18 @@ const NICHE_SUGGESTIONS = [
 
 type FieldErrorProps = { errors: unknown[] };
 
+function extractErrorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error !== null && typeof error === "object" && "message" in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return String(error);
+}
+
 function FieldError({ errors }: FieldErrorProps): React.ReactElement | null {
   if (!errors.length) return null;
   return (
-    <p className="text-sm font-medium text-destructive">{String(errors[0])}</p>
+    <p className="text-sm font-medium text-destructive">{extractErrorMessage(errors[0])}</p>
   );
 }
 
@@ -86,8 +94,7 @@ export function RegisterCreatorForm(): React.ReactElement {
     >
       <Button
         type="button"
-        variant="outline"
-        className="w-full gap-2"
+        className="w-full gap-2 bg-gradient-ig text-white border-transparent hover:opacity-90"
         disabled={isSocialPending}
         onClick={() =>
           initiateSocialAuth({ role: UserRole.CREATOR, provider: SocialProvider.INSTAGRAM })
@@ -298,7 +305,7 @@ export function RegisterCreatorForm(): React.ReactElement {
         {(isSubmitting) => (
           <Button
             type="submit"
-            className="w-full mt-2"
+            className="mt-2 w-full bg-gradient-ig text-white border-transparent hover:opacity-90"
             disabled={isPending || isSubmitting}
           >
             {(isPending || isSubmitting) && (

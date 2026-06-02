@@ -4,12 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "@tanstack/react-form";
 import { Loader2, Plus, X } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Logo } from "@/components/common/logo";
 import { useCompleteSocialProfile } from "@/hooks/auth/useAuth";
 import { useAuthStore } from "@/stores/auth.store";
 import {
@@ -49,9 +47,17 @@ const NICHE_SUGGESTIONS = [
 
 type FieldErrorProps = { errors: unknown[] };
 
+function extractErrorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error !== null && typeof error === "object" && "message" in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return String(error);
+}
+
 function FieldError({ errors }: FieldErrorProps): React.ReactElement | null {
   if (!errors.length) return null;
-  return <p className="text-sm font-medium text-destructive">{String(errors[0])}</p>;
+  return <p className="text-sm font-medium text-destructive">{extractErrorMessage(errors[0])}</p>;
 }
 
 function BrandCompleteProfileForm({
@@ -136,7 +142,7 @@ function BrandCompleteProfileForm({
 
       <form.Subscribe selector={(s) => s.isSubmitting}>
         {(isSubmitting) => (
-          <Button type="submit" className="w-full mt-2" disabled={isPending || isSubmitting}>
+          <Button type="submit" className="mt-2 w-full bg-gradient-ig text-white border-transparent hover:opacity-90" disabled={isPending || isSubmitting}>
             {(isPending || isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Complete Profile
           </Button>
@@ -300,7 +306,7 @@ function CreatorCompleteProfileForm({
 
       <form.Subscribe selector={(s) => s.isSubmitting}>
         {(isSubmitting) => (
-          <Button type="submit" className="w-full mt-2" disabled={isPending || isSubmitting}>
+          <Button type="submit" className="mt-2 w-full bg-gradient-ig text-white border-transparent hover:opacity-90" disabled={isPending || isSubmitting}>
             {(isPending || isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Complete Profile
           </Button>
@@ -329,27 +335,41 @@ export default function CompleteProfilePage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-12">
-      <div className="w-full max-w-lg space-y-6">
-        <Logo className="mx-auto justify-center" />
+    <div className="dark flex min-h-screen items-center justify-center bg-hero-bg px-4 py-12">
+      {/* Background blobs */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -left-40 top-1/4 h-96 w-96 rounded-full bg-ig-purple/20 blur-[100px] animate-pulse-glow" />
+        <div className="absolute -bottom-20 right-0 h-80 w-80 rounded-full bg-ig-orange/15 blur-[80px] animate-pulse-glow delay-neg-2s" />
+        <div className="absolute inset-0 opacity-[0.04] hero-grid-overlay" />
+      </div>
 
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Complete your profile</CardTitle>
-            <CardDescription>
-              {isBrand
-                ? "Tell us a bit about your brand to get started."
-                : "A few more details to set up your creator profile."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isBrand ? (
-              <BrandCompleteProfileForm intermediateToken={intermediateToken} role={role} />
-            ) : (
-              <CreatorCompleteProfileForm intermediateToken={intermediateToken} role={role} />
-            )}
-          </CardContent>
-        </Card>
+      <div className="relative z-10 w-full max-w-lg space-y-7">
+        {/* Logo */}
+        <div className="text-center">
+          <span className="inline-flex items-center gap-1 text-2xl font-bold">
+            <span className="text-gradient-ig">Creator</span>
+            <span className="text-white">Lane</span>
+          </span>
+        </div>
+
+        {/* Heading */}
+        <div>
+          <h1 className="text-2xl font-bold text-white">Complete your profile</h1>
+          <p className="mt-1.5 text-sm text-white/50">
+            {isBrand
+              ? "Tell us a bit about your brand to get started."
+              : "A few more details to set up your creator profile."}
+          </p>
+        </div>
+
+        {/* Form card */}
+        <div className="rounded-2xl p-7 glass">
+          {isBrand ? (
+            <BrandCompleteProfileForm intermediateToken={intermediateToken} role={role} />
+          ) : (
+            <CreatorCompleteProfileForm intermediateToken={intermediateToken} role={role} />
+          )}
+        </div>
       </div>
     </div>
   );

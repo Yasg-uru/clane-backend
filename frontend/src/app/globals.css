@@ -46,6 +46,13 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Instagram gradient palette */
+  --color-ig-purple: oklch(0.45 0.22 296);
+  --color-ig-red: oklch(0.55 0.24 27);
+  --color-ig-orange: oklch(0.78 0.17 70);
+  --color-hero-bg: oklch(0.07 0.01 270);
+  --color-hero-surface: oklch(0.11 0.01 270);
 }
 
 :root {
@@ -127,4 +134,210 @@
   html {
     @apply font-sans;
   }
+}
+
+/* ============================================================
+   Landing page animation keyframes
+   ============================================================ */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-10px) rotate(0.5deg); }
+  66% { transform: translateY(-6px) rotate(-0.5deg); }
+}
+
+@keyframes float-b {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  40% { transform: translateY(-14px) rotate(-0.8deg); }
+  70% { transform: translateY(-5px) rotate(0.3deg); }
+}
+
+@keyframes float-c {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%       { opacity: 0.85; transform: scale(1.06); }
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ping-slow {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50%       { transform: scale(1.15); opacity: 0; }
+}
+
+@keyframes gradient-border {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+
+/* ============================================================
+   Landing page custom utilities
+   ============================================================ */
+
+@layer utilities {
+  /* Animation helpers */
+  .animate-float       { animation: float   6s ease-in-out infinite; }
+  .animate-float-b     { animation: float-b 7s ease-in-out infinite; }
+  .animate-float-c     { animation: float-c 5s ease-in-out infinite; }
+  .animate-gradient    { background-size: 300% 300%; animation: gradient-shift 7s ease infinite; }
+  .animate-shimmer     { background-size: 250% auto; animation: shimmer 3s linear infinite; }
+  .animate-fade-up     { animation: fade-up 0.65s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-pulse-glow  { animation: pulse-glow 4s ease-in-out infinite; }
+  .animate-spin-slow   { animation: spin-slow 22s linear infinite; }
+  .animate-ping-slow   { animation: ping-slow 3s ease-in-out infinite; }
+
+  /* Animation delay helpers */
+  .delay-100  { animation-delay: 0.1s; }
+  .delay-200  { animation-delay: 0.2s; }
+  .delay-300  { animation-delay: 0.3s; }
+  .delay-500  { animation-delay: 0.5s; }
+  .delay-700  { animation-delay: 0.7s; }
+  .delay-1000 { animation-delay: 1s; }
+  .delay-neg-2s  { animation-delay: -2s; }
+  .delay-neg-35s { animation-delay: -3.5s; }
+  .delay-neg-1s  { animation-delay: -1s; }
+
+  /* Instagram gradient text */
+  .text-gradient-ig {
+    background: linear-gradient(135deg, var(--color-ig-purple), var(--color-ig-red), var(--color-ig-orange));
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Animated gradient text */
+  .text-gradient-ig-anim {
+    background: linear-gradient(135deg, var(--color-ig-purple), var(--color-ig-red), var(--color-ig-orange), var(--color-ig-purple));
+    background-size: 300% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: gradient-shift 5s ease infinite;
+  }
+
+  /* Instagram gradient backgrounds */
+  .bg-gradient-ig {
+    background: linear-gradient(135deg, var(--color-ig-purple), var(--color-ig-red), var(--color-ig-orange));
+  }
+
+  .bg-gradient-ig-animated {
+    background: linear-gradient(135deg, var(--color-ig-purple), var(--color-ig-red), var(--color-ig-orange), var(--color-ig-purple));
+    background-size: 300% 300%;
+    animation: gradient-shift 6s ease infinite;
+  }
+
+  /* Hero section */
+  .bg-hero-bg      { background-color: var(--color-hero-bg); }
+  .bg-hero-surface { background-color: var(--color-hero-surface); }
+
+  /* Glass morphism */
+  .glass {
+    background: oklch(1 0 0 / 6%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid oklch(1 0 0 / 10%);
+  }
+
+  .glass-sm {
+    background: oklch(1 0 0 / 4%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid oklch(1 0 0 / 8%);
+  }
+
+  /* Navbar rotating border — spinning conic gradient layer */
+  .navbar-spin-gradient {
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      transparent 200deg,
+      oklch(0.45 0.22 296 / 0.9) 248deg,
+      oklch(0.55 0.24 27  / 0.9) 292deg,
+      oklch(0.78 0.17 70  / 0.8) 328deg,
+      transparent 360deg
+    );
+  }
+
+  /* Gradient ring (Instagram Stories style) */
+  .ring-gradient-ig {
+    background: linear-gradient(135deg, var(--color-ig-purple), var(--color-ig-red), var(--color-ig-orange));
+    padding: 2px;
+  }
+
+  /* Theme-adaptive grid overlay (dark lines in light mode, white lines in dark) */
+  .adaptive-grid-overlay {
+    background-image:
+      linear-gradient(oklch(0 0 0 / 7%) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0 0 0 / 7%) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  /* Subtle dot/grid overlays */
+  .hero-grid-overlay {
+    background-image:
+      linear-gradient(oklch(1 0 0 / 15%) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(1 0 0 / 15%) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  /* Auth left panel — gradient in light, dark in dark */
+  .auth-panel-bg {
+    background: linear-gradient(
+      145deg,
+      oklch(0.45 0.22 296 / 0.07),
+      var(--background) 50%,
+      oklch(0.78 0.17 70 / 0.05)
+    );
+    border-right: 1px solid oklch(0.922 0 0);
+  }
+
+  /* Shimmer effect */
+  .shimmer {
+    background: linear-gradient(
+      105deg,
+      transparent 30%,
+      oklch(1 0 0 / 8%) 50%,
+      transparent 70%
+    );
+    background-size: 250% auto;
+    animation: shimmer 3s linear infinite;
+  }
+}
+
+/* Dark-mode overrides for adaptive utilities (outside @layer so specificity wins) */
+.dark .adaptive-grid-overlay,
+:is(.dark *).adaptive-grid-overlay {
+  background-image:
+    linear-gradient(oklch(1 0 0 / 12%) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(1 0 0 / 12%) 1px, transparent 1px);
+}
+
+.dark .auth-panel-bg,
+:is(.dark *).auth-panel-bg {
+  background: var(--color-hero-bg);
+  border-right: none;
 }

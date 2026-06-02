@@ -1,45 +1,51 @@
 import type { Metadata } from "next";
+import type { ReactElement } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { AuthPanelBrand } from "@/components/auth/auth-panel-brand";
 import { RegisterBrandForm } from "@/components/auth/register-brand-form";
-import { Logo } from "@/components/common/logo";
 import { ROUTES } from "@/config/routes.config";
 
 export const metadata: Metadata = { title: "Register as Brand" };
 
-export default function RegisterBrandPage() {
+export default function RegisterBrandPage(): ReactElement {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-12">
-      <div className="w-full max-w-lg space-y-6">
-        <Logo className="mx-auto justify-center" />
+    <AuthShell panel={<AuthPanelBrand />}>
+      <div className="space-y-7">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Create your brand account</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Start connecting with India&apos;s top verified creators
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Create your brand account</CardTitle>
-            <CardDescription>
-              Start connecting with India&apos;s top creators
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        {/* Form card — gradient border */}
+        <div className="ring-gradient-ig rounded-2xl shadow-lg shadow-ig-purple/10 dark:shadow-ig-purple/20">
+          <div className="rounded-2xl bg-background/95 p-7 backdrop-blur-sm dark:bg-card/90">
             <RegisterBrandForm />
-            <p className="mt-4 text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link href={ROUTES.auth.login} className="font-medium text-primary hover:underline">
-                Sign in
-              </Link>
-            </p>
-            <p className="mt-2 text-center text-sm text-muted-foreground">
-              Are you a creator?{" "}
-              <Link
-                href={ROUTES.auth.registerCreator}
-                className="font-medium text-primary hover:underline"
-              >
-                Register as Creator
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+
+        {/* Footer links */}
+        <div className="space-y-2 text-center text-sm text-muted-foreground">
+          <p>
+            Already have an account?{" "}
+            <Link href={ROUTES.auth.login} className="font-semibold text-foreground hover:underline">
+              Sign in
+            </Link>
+          </p>
+          <p>
+            Are you a creator?{" "}
+            <Link
+              href={ROUTES.auth.registerCreator}
+              className="font-semibold text-foreground hover:underline"
+            >
+              Register as Creator
+            </Link>
+          </p>
+        </div>
       </div>
-    </div>
+    </AuthShell>
   );
 }

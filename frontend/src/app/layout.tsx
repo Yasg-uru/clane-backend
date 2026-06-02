@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Karla } from "next/font/google";
 import "./globals.css";
 import { RootProviders } from "@/components/layout/root-providers";
 import { APP_CONFIG } from "@/config/app.config";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const karla = Karla({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: { default: APP_CONFIG.name, template: `%s | ${APP_CONFIG.name}` },
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geist.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${karla.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full bg-background text-foreground">
         <RootProviders>{children}</RootProviders>
       </body>

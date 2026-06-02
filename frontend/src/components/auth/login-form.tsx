@@ -23,10 +23,18 @@ import { SocialProvider, UserRole } from "@/types";
 
 type FieldErrorProps = { errors: unknown[] };
 
+function extractErrorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error !== null && typeof error === "object" && "message" in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return String(error);
+}
+
 function FieldError({ errors }: FieldErrorProps): React.ReactElement | null {
   if (!errors.length) return null;
   return (
-    <p className="text-sm font-medium text-destructive">{String(errors[0])}</p>
+    <p className="text-sm font-medium text-destructive">{extractErrorMessage(errors[0])}</p>
   );
 }
 
@@ -179,7 +187,7 @@ export function LoginForm(): React.ReactElement {
         {(isSubmitting) => (
           <Button
             type="submit"
-            className="w-full"
+            className="w-full bg-gradient-ig text-white border-transparent hover:opacity-90"
             disabled={isPending || isSubmitting}
           >
             {(isPending || isSubmitting) && (
@@ -205,7 +213,7 @@ export function LoginForm(): React.ReactElement {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full gap-2"
+                className="w-full gap-2 border-border/70 hover:bg-muted/50"
                 disabled={isSocialPending}
                 onClick={() =>
                   initiateSocialAuth({ role: UserRole.BRAND, provider: SocialProvider.GOOGLE })
@@ -221,8 +229,7 @@ export function LoginForm(): React.ReactElement {
             ) : (
               <Button
                 type="button"
-                variant="outline"
-                className="w-full gap-2"
+                className="w-full gap-2 bg-gradient-ig text-white border-transparent hover:opacity-90"
                 disabled={isSocialPending}
                 onClick={() =>
                   initiateSocialAuth({
