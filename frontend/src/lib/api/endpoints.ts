@@ -11,4 +11,6 @@ export const AUTH_ENDPOINTS = {
   connectSocialAccount: (role: string, provider: string) => `/auth/${role}/${provider}/connect`,
   completeSocialProfile: (role: string) => `/auth/${role}/complete-profile`,
   submitInstagramEmail: (role: string) => `/auth/${role}/instagram/submit-email`,
+  forgotPassword: "/auth/forgot-password",
+  resetPassword: "/auth/reset-password",
 } as const;

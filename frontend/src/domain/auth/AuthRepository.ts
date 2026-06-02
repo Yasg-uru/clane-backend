@@ -8,6 +8,7 @@ import type {
 import type {
   BrandRegisterInput,
   CreatorRegisterInput,
+  ForgotPasswordInput,
   LoginInput,
   VerifyOtpInput,
   ResendOtpInput,
@@ -26,6 +27,8 @@ export interface IAuthRepository {
   login(data: LoginInput): Promise<LoginResult>;
   refresh(): Promise<RefreshResult>;
   logout(): Promise<void>;
+  forgotPassword(data: ForgotPasswordInput): Promise<void>;
+  resetPassword(data: { token: string; newPassword: string; role: string }): Promise<void>;
   initiateSocialAuth(role: string, provider: string): Promise<string>;
   handleSocialCallback(
     role: string,
@@ -79,6 +82,14 @@ export class AuthRepository implements IAuthRepository {
 
   async logout(): Promise<void> {
     await apiClient.post<ApiResponse<void>>(AUTH_ENDPOINTS.logout);
+  }
+
+  async forgotPassword(data: ForgotPasswordInput): Promise<void> {
+    await apiClient.post<ApiResponse<void>>(AUTH_ENDPOINTS.forgotPassword, data);
+  }
+
+  async resetPassword(data: { token: string; newPassword: string; role: string }): Promise<void> {
+    await apiClient.post<ApiResponse<void>>(AUTH_ENDPOINTS.resetPassword, data);
   }
 
   async initiateSocialAuth(role: string, provider: string): Promise<string> {

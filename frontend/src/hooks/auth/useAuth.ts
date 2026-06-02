@@ -10,6 +10,7 @@ import { TokenManager } from "@/domain/auth/TokenManager";
 import type {
   BrandRegisterInput,
   CreatorRegisterInput,
+  ForgotPasswordInput,
   LoginInput,
   VerifyOtpInput,
   ResendOtpInput,
@@ -123,6 +124,31 @@ export function useLogout() {
       clearAuth();
       queryClient.clear();
       router.push(ROUTES.auth.login);
+    },
+  });
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (data: ForgotPasswordInput) => authService.forgotPassword(data),
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+export function useResetPassword() {
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: (data: { token: string; newPassword: string; role: string }) =>
+      authService.resetPassword(data),
+    onSuccess: () => {
+      toast.success("Password reset! You can now sign in.");
+      router.push(ROUTES.auth.login);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
     },
   });
 }

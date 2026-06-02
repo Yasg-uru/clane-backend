@@ -11,6 +11,8 @@ import { Separator } from "@/components/ui/separator";
 import { useRegisterCreator, useInitiateSocialAuth } from "@/hooks/auth/useAuth";
 import { creatorRegisterSchema } from "@/schemas/auth.schema";
 import { SocialProvider, UserRole } from "@/types";
+import { FieldError } from "@/components/auth/field-error";
+import { GoogleIcon, InstagramIcon } from "@/components/auth/icons";
 
 const NICHE_SUGGESTIONS = [
   "Fashion",
@@ -24,46 +26,9 @@ const NICHE_SUGGESTIONS = [
   "Education",
   "Lifestyle",
   "Parenting",
-  "Comedy",
-];
 
-type FieldErrorProps = { errors: unknown[] };
-
-function extractErrorMessage(error: unknown): string {
-  if (typeof error === "string") return error;
-  if (error !== null && typeof error === "object" && "message" in error) {
-    return String((error as { message: unknown }).message);
-  }
-  return String(error);
-}
-
-function FieldError({ errors }: FieldErrorProps): React.ReactElement | null {
-  if (!errors.length) return null;
-  return (
-    <p className="text-sm font-medium text-destructive">{extractErrorMessage(errors[0])}</p>
-  );
-}
-
-function InstagramIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <defs>
-        <radialGradient id="ig-reg-grad" cx="30%" cy="107%" r="150%">
-          <stop offset="0%" stopColor="#fdf497" />
-          <stop offset="5%" stopColor="#fdf497" />
-          <stop offset="45%" stopColor="#fd5949" />
-          <stop offset="60%" stopColor="#d6249f" />
-          <stop offset="90%" stopColor="#285AEB" />
-        </radialGradient>
-      </defs>
-      <rect width="24" height="24" rx="6" fill="url(#ig-reg-grad)" />
-      <circle cx="12" cy="12" r="4" stroke="white" strokeWidth="1.5" />
-      <circle cx="17.5" cy="6.5" r="1" fill="white" />
-    </svg>
-  );
-}
-
-export function RegisterCreatorForm(): React.ReactElement {
+]
+export  function RegisterCreatorForm(): React.ReactElement {
   const [showPassword, setShowPassword] = useState(false);
   const [nicheInput, setNicheInput] = useState("");
   const { mutate: registerCreator, isPending } = useRegisterCreator();

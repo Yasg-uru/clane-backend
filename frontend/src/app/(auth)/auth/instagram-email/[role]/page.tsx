@@ -13,13 +13,8 @@ import { useSubmitInstagramEmail } from "@/hooks/auth/useAuth";
 import { useAuthStore } from "@/stores/auth.store";
 import { submitInstagramEmailSchema } from "@/schemas/auth.schema";
 import { ROUTES } from "@/config/routes.config";
+import { FieldError } from "@/components/auth/field-error";
 
-type FieldErrorProps = { errors: unknown[] };
-
-function FieldError({ errors }: FieldErrorProps): React.ReactElement | null {
-  if (!errors.length) return null;
-  return <p className="text-sm font-medium text-destructive">{String(errors[0])}</p>;
-}
 
 export default function InstagramEmailPage() {
   const params = useParams<{ role: string }>();

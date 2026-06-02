@@ -94,6 +94,23 @@ export const submitInstagramEmailSchema = z.object({
   email: emailSchema,
 });
 
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+  role: roleSchema,
+});
+
+export const resetPasswordFormSchema = z
+  .object({
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordFormValues = z.infer<typeof resetPasswordFormSchema>;
 export type BrandRegisterInput = z.infer<typeof brandRegisterSchema>;
 export type CreatorRegisterInput = z.infer<typeof creatorRegisterSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;

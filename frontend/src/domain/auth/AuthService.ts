@@ -2,6 +2,7 @@ import { UserRole, type SafeUser, type SocialAuthCallbackResult } from "@/types"
 import type {
   BrandRegisterInput,
   CreatorRegisterInput,
+  ForgotPasswordInput,
   LoginInput,
   VerifyOtpInput,
   ResendOtpInput,
@@ -89,6 +90,26 @@ export class AuthService {
       await this.authRepository.logout();
     } finally {
       this.tokenManager.clear();
+    }
+  }
+
+  async forgotPassword(data: ForgotPasswordInput): Promise<void> {
+    try {
+      await this.authRepository.forgotPassword(data);
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  async resetPassword(data: {
+    token: string;
+    newPassword: string;
+    role: string;
+  }): Promise<void> {
+    try {
+      await this.authRepository.resetPassword(data);
+    } catch (error) {
+      throw normalizeError(error);
     }
   }
 
