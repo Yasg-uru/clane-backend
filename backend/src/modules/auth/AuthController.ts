@@ -78,7 +78,7 @@ export class AuthController {
     const decoded = this.tokenService.verifyRefreshToken(rawToken);
     const result = await this.getService(decoded.role).refreshToken(rawToken, decoded);
     res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS);
-    res.status(200).json(new ApiResponse("Token refreshed", { accessToken: result.accessToken }));
+    res.status(200).json(new ApiResponse("Token refreshed", { accessToken: result.accessToken, user: result.user }));
   });
 
   logout = AsyncHandler.wrap(async (req, res) => {

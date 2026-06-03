@@ -14,6 +14,8 @@ export const ROUTES = {
   brand: {
     dashboard: "/dashboard",
     campaigns: "/campaigns",
+    campaignCreate: "/campaigns/create",
+    campaignDetail: (id: string): string => `/campaigns/${id}`,
     creators: "/creators",
     collabs: "/collabs",
     payments: "/payments",

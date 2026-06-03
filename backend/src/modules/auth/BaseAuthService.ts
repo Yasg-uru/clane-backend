@@ -163,7 +163,7 @@ export abstract class BaseAuthService {
     const nextRefreshToken = this.tokenService.generateRefreshToken(nextPayload);
     await this.updateUserRefreshToken(user._id.toString(), this.tokenService.hashToken(nextRefreshToken));
 
-    return { accessToken, refreshToken: nextRefreshToken };
+    return { accessToken, refreshToken: nextRefreshToken, user: AuthMapper.toSafeUser(user) };
   }
 
   async logout(payload: JwtPayload): Promise<void> {

@@ -1,3 +1,13 @@
+export const CAMPAIGN_ENDPOINTS = {
+  list: "/campaigns",
+  create: "/campaigns",
+  detail: (id: string): string => `/campaigns/${id}`,
+  update: (id: string): string => `/campaigns/${id}`,
+  publish: (id: string): string => `/campaigns/${id}/publish`,
+  unpublish: (id: string): string => `/campaigns/${id}/unpublish`,
+  close: (id: string): string => `/campaigns/${id}/close`,
+} as const;
+
 export const AUTH_ENDPOINTS = {
   registerBrand: "/auth/brand/register",
   registerCreator: "/auth/creator/register",

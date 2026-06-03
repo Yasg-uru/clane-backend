@@ -3,6 +3,7 @@ import { APP_CONFIG } from "@/config/app.config";
 import { ROUTES } from "@/config/routes.config";
 import { AUTH_ENDPOINTS } from "./endpoints";
 import { normalizeError } from "./error-handler";
+import type { SafeUser } from "@/types";
 
 const SKIP_AUTH_PATHS = new Set<string>([
   AUTH_ENDPOINTS.login,
@@ -13,16 +14,62 @@ const SKIP_AUTH_PATHS = new Set<string>([
   AUTH_ENDPOINTS.refresh,
 ]);
 
+// ── Shared refresh lock — used by both the 401 interceptor and useSessionHydration ──
+
 let isRefreshing = false;
 let refreshQueue: Array<(token: string) => void> = [];
+let refreshRejectQueue: Array<(err: unknown) => void> = [];
 
 function drainQueue(token: string): void {
   refreshQueue.forEach((resolve) => resolve(token));
   refreshQueue = [];
+  refreshRejectQueue = [];
 }
 
-function clearQueue(): void {
+function rejectQueue(err: unknown): void {
+  refreshRejectQueue.forEach((reject) => reject(err));
   refreshQueue = [];
+  refreshRejectQueue = [];
+}
+
+type RefreshApiResponse = {
+  data: {
+    accessToken: string;
+    user: SafeUser;
+  };
+};
+
+/**
+ * Performs a token refresh with a mutual-exclusion lock.
+ * Both the Axios 401 interceptor and useSessionHydration call this —
+ * concurrent callers are queued and resolved with the same new token.
+ * Returns the new access token and the refreshed user data.
+ */
+export async function performTokenRefresh(): Promise<{ accessToken: string; user: SafeUser }> {
+  if (isRefreshing) {
+    return new Promise<{ accessToken: string; user: SafeUser }>((resolve, reject) => {
+      refreshQueue.push((token) => resolve({ accessToken: token, user: getAuthStore().user! }));
+      refreshRejectQueue.push(reject);
+      setTimeout(() => reject(new Error("Refresh timeout")), 10_000);
+    });
+  }
+
+  isRefreshing = true;
+
+  try {
+    const response = await apiClient.post<RefreshApiResponse>(AUTH_ENDPOINTS.refresh);
+    const { accessToken, user } = response.data.data;
+
+    getAuthStore().setAccessToken(accessToken);
+    drainQueue(accessToken);
+
+    return { accessToken, user };
+  } catch (error) {
+    rejectQueue(error);
+    throw error;
+  } finally {
+    isRefreshing = false;
+  }
 }
 
 export function createApiClient(): AxiosInstance {
@@ -51,47 +98,22 @@ export function createApiClient(): AxiosInstance {
     (response) => response,
     async (error) => {
       const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-
       const status: number = error.response?.status ?? 0;
       const isRefreshEndpoint = (original.url ?? "").includes(AUTH_ENDPOINTS.refresh);
 
       if (status === 401 && !original._retry && !isRefreshEndpoint) {
-        if (isRefreshing) {
-          return new Promise((resolve, reject) => {
-            refreshQueue.push((token) => {
-              original.headers.Authorization = `Bearer ${token}`;
-              resolve(client(original));
-            });
-            setTimeout(() => reject(normalizeError(error)), 10_000);
-          });
-        }
-
         original._retry = true;
-        isRefreshing = true;
 
         try {
-          const refreshResponse = await client.post<{ data: { accessToken: string } }>(
-            AUTH_ENDPOINTS.refresh,
-          );
-          const newToken = refreshResponse.data.data.accessToken;
-
-          const { setAccessToken } = getAuthStore();
-          setAccessToken(newToken);
-
-          original.headers.Authorization = `Bearer ${newToken}`;
-          drainQueue(newToken);
-
+          const { accessToken } = await performTokenRefresh();
+          original.headers.Authorization = `Bearer ${accessToken}`;
           return client(original);
         } catch {
-          clearQueue();
-          const { clearAuth } = getAuthStore();
-          clearAuth();
+          getAuthStore().clearAuth();
           if (typeof window !== "undefined") {
             window.location.href = ROUTES.auth.login;
           }
           return Promise.reject(normalizeError(error));
-        } finally {
-          isRefreshing = false;
         }
       }
 

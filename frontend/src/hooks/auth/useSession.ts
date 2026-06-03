@@ -2,11 +2,7 @@
 
 import { useEffect } from "react";
 import { useAuthStore } from "@/stores/auth.store";
-import { AuthService } from "@/domain/auth/AuthService";
-import { AuthRepository } from "@/domain/auth/AuthRepository";
-import { TokenManager } from "@/domain/auth/TokenManager";
-
-const authService = new AuthService(new AuthRepository());
+import { performTokenRefresh } from "@/lib/api/client";
 
 export function useSessionHydration() {
   const { setSession, setHydrated, isHydrated } = useAuthStore();
@@ -14,15 +10,12 @@ export function useSessionHydration() {
   useEffect(() => {
     if (isHydrated) return;
 
-    authService
-      .refresh()
-      .then((user) => {
-        const token = TokenManager.getInstance().get() ?? "";
-        const rawUser = { ...user } as Parameters<typeof setSession>[0];
-        setSession(rawUser, token);
+    performTokenRefresh()
+      .then(({ accessToken, user }) => {
+        setSession(user, accessToken);
       })
       .catch(() => {
-        // no active session — normal on first load
+        // No active session — normal on first visit or after logout.
       })
       .finally(() => {
         setHydrated();

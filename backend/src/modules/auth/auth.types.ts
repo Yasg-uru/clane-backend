@@ -11,4 +11,5 @@ export interface AuthResult {
 export interface RefreshResult {
   accessToken: string;
   refreshToken: string;
+  user: SafeUser;
 }
