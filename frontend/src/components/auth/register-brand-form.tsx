@@ -12,19 +12,7 @@ import { brandRegisterSchema } from "@/schemas/auth.schema";
 import { SocialProvider, UserRole } from "@/types";
 import { FieldError } from "@/components/auth/field-error";
 import { GoogleIcon, InstagramIcon } from "@/components/auth/icons";
-
-const BRAND_TYPES = [
-  "Fashion & Apparel",
-  "Beauty & Skincare",
-  "Food & Beverage",
-  "Tech & Electronics",
-  "Health & Wellness",
-  "Travel & Hospitality",
-  "Home & Lifestyle",
-  "Finance & Fintech",
-  "EdTech",
-  "Other",
-];
+import { BRAND_TYPES } from "@/config/brand.config";
 
 export function RegisterBrandForm(): React.ReactElement {
   const [showPassword, setShowPassword] = useState(false);

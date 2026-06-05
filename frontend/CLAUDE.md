@@ -350,6 +350,40 @@ export function CampaignCard({ campaign, onSelect, isSelected = false, className
 - Add `"use client"` only when the component uses: `useState`, `useEffect`, `useRef`, event handlers, browser APIs, TanStack Query hooks, or Zustand.
 - Never add `"use client"` to a layout unless absolutely necessary.
 
+### File organization — one concern per file
+
+Every `.tsx` file exports **exactly one public component**. Supporting code must live in the appropriate layer:
+
+| Code type | Where it lives |
+|---|---|
+| Pure formatters (dates, currency, numbers) | `src/lib/formatters.ts` |
+| Status / label / style config maps | `src/config/[domain].config.ts` |
+| Reusable sub-components (used in 2+ files) | Own file in `components/[feature]/` |
+| Micro sub-components (< 20 lines, used only by one parent) | Bottom of the parent file, clearly separated |
+
+**Never** define utility functions inside a component file — they belong in `src/lib/`.  
+**Never** define display config maps (status labels, colour maps) inside a component file — they belong in `src/config/`.  
+**Never** export multiple primary components from a single `.tsx` file.
+
+```ts
+// ✅ CORRECT
+// src/lib/formatters.ts
+export function formatCurrency(amount: number): string { ... }
+
+// src/config/status.config.ts
+export const CAMPAIGN_STATUS_CONFIG: Record<CampaignStatus, { label: string; style: string }> = { ... };
+
+// src/components/campaign/campaign-stat-card.tsx
+export function CampaignStatCard({ ... }: CampaignStatCardProps): ReactElement { ... }
+
+// ❌ WRONG — utility functions and config maps defined inside a component file
+// src/components/campaign/campaign-detail.tsx
+function formatCurrency(amount: number) { ... }        // ← belongs in lib/formatters.ts
+const STATUS_STYLE: Record<CampaignStatus, string> = { ... };  // ← belongs in config/
+function StatCard(...) { ... }                         // ← belongs in its own file
+export function CampaignDetail() { ... }
+```
+
 ---
 
 ## 11. ROUTING & NAVIGATION

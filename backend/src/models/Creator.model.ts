@@ -165,5 +165,10 @@ const creatorSchema = new Schema<Creator>(
 );
 
 creatorSchema.index({ location: "2dsphere" }, { sparse: true });
+// Supports brand creator browse: filter by verified+complete, sort by reach
+creatorSchema.index(
+  { isEmailVerified: 1, isProfileComplete: 1, instagramFollowers: -1 },
+  { name: "creator_browse" },
+);
 
 export const CreatorModel = model<Creator>("Creator", creatorSchema);

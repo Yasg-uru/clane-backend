@@ -9,20 +9,8 @@ import { FieldError } from "@/components/auth/field-error";
 import { useCampaignWizardStore } from "@/stores/campaign-wizard.store";
 import { step3Schema } from "@/schemas/campaign.schema";
 import { CampaignDeliveryType } from "@/types/campaign.types";
+import { DELIVERY_OPTIONS } from "@/config/campaign.config";
 import { cn } from "@/lib/utils";
-
-const DELIVERY_OPTIONS = [
-  {
-    value: CampaignDeliveryType.REMOTE,
-    label: "Remote",
-    desc: "Creator works from their location",
-  },
-  {
-    value: CampaignDeliveryType.ONSITE,
-    label: "Onsite",
-    desc: "Creator must visit a specific location",
-  },
-] as const;
 
 const TODAY = new Date();
 TODAY.setDate(TODAY.getDate() + 4);

@@ -171,6 +171,7 @@ function CustomGradientDialog({ open, onOpenChange, onSave }: CustomGradientDial
 // ─── Main picker ─────────────────────────────────────────────────────────────
 
 export function GradientThemePicker(): ReactElement {
+  const _hasHydrated = useGradientThemeStore((s) => s._hasHydrated);
   const activeThemeId = useGradientThemeStore((s) => s.activeThemeId);
   const setTheme = useGradientThemeStore((s) => s.setTheme);
   const getActiveTheme = useGradientThemeStore((s) => s.getActiveTheme);
@@ -181,7 +182,9 @@ export function GradientThemePicker(): ReactElement {
   const activeTheme = getActiveTheme();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const activeGradient = `linear-gradient(135deg, ${activeTheme.from}, ${activeTheme.via}, ${activeTheme.to})`;
+  const activeGradient = _hasHydrated
+    ? `linear-gradient(135deg, ${activeTheme.from}, ${activeTheme.via}, ${activeTheme.to})`
+    : undefined;
 
   function handleAddCustom(theme: Omit<GradientTheme, "id">): void {
     const id = `custom_${Date.now()}`;
@@ -200,8 +203,8 @@ export function GradientThemePicker(): ReactElement {
           )}
         >
           <span
-            className="size-4 rounded-full shadow-sm"
-            style={{ background: activeGradient }}
+            className="size-4 rounded-full shadow-sm transition-[background] duration-300"
+            style={activeGradient ? { background: activeGradient } : undefined}
           />
         </HoverCardTrigger>
 
@@ -229,7 +232,7 @@ export function GradientThemePicker(): ReactElement {
               <ThemeSwatch
                 key={theme.id}
                 theme={theme}
-                isActive={theme.id === activeThemeId}
+                isActive={_hasHydrated && theme.id === activeThemeId}
                 onSelect={() => setTheme(theme.id)}
               />
             ))}
@@ -239,7 +242,7 @@ export function GradientThemePicker(): ReactElement {
               <ThemeSwatch
                 key={theme.id}
                 theme={theme}
-                isActive={theme.id === activeThemeId}
+                isActive={_hasHydrated && theme.id === activeThemeId}
                 onSelect={() => setTheme(theme.id)}
                 onRemove={() => removeCustomTheme(theme.id)}
               />

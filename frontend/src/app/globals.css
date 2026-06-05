@@ -187,6 +187,10 @@
   to { transform: rotate(360deg); }
 }
 
+@keyframes dash-flow {
+  to { stroke-dashoffset: -17; }
+}
+
 @keyframes ping-slow {
   0%, 100% { transform: scale(1); opacity: 0.4; }
   50%       { transform: scale(1.15); opacity: 0; }
@@ -247,12 +251,14 @@
   /* Gradient backgrounds — use active theme */
   .bg-gradient-ig {
     background: linear-gradient(135deg, var(--grad-from), var(--grad-via), var(--grad-to));
+    background-clip: padding-box;
   }
 
   .bg-gradient-ig-animated {
     background: linear-gradient(135deg, var(--grad-from), var(--grad-via), var(--grad-to), var(--grad-from));
     background-size: 300% 300%;
     animation: gradient-shift 6s ease infinite;
+    background-clip: padding-box;
   }
 
   /* Hero section */

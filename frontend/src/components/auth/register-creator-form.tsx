@@ -13,21 +13,7 @@ import { creatorRegisterSchema } from "@/schemas/auth.schema";
 import { SocialProvider, UserRole } from "@/types";
 import { FieldError } from "@/components/auth/field-error";
 import { GoogleIcon, InstagramIcon } from "@/components/auth/icons";
-
-const NICHE_SUGGESTIONS = [
-  "Fashion",
-  "Beauty",
-  "Fitness",
-  "Food",
-  "Travel",
-  "Tech",
-  "Finance",
-  "Gaming",
-  "Education",
-  "Lifestyle",
-  "Parenting",
-
-]
+import { NICHE_SUGGESTIONS } from "@/config/creator.config";
 export  function RegisterCreatorForm(): React.ReactElement {
   const [showPassword, setShowPassword] = useState(false);
   const [nicheInput, setNicheInput] = useState("");

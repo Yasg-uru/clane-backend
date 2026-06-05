@@ -18,9 +18,14 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
 import { GradientOrb } from "@/components/common/gradient-orb";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { SafeBrand } from "@/types";
+import { HOW_IT_WORKS } from "@/config/brand.config";
+import { useCreators } from "@/hooks/creator/useCreators";
 import { ROUTES } from "@/config/routes.config";
+import { formatFollowers, getInitials } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
+import { CreatorPlatform } from "@/types/creator.types";
 
 type BrandDashboardProps = {
   brand: SafeBrand;
@@ -31,32 +36,16 @@ type StatCardProps = {
   label: string;
   value: string;
   sub?: string;
-  gradient?: boolean;
+  accentClass: string;
+  iconBgClass: string;
 };
 
-function StatCard({ icon, label, value, sub, gradient }: StatCardProps): ReactElement {
+function StatCard({ icon, label, value, sub, accentClass, iconBgClass }: StatCardProps): ReactElement {
   return (
-    <div
-      className={cn(
-        "relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5 transition-all hover:shadow-md",
-        gradient && "border-transparent",
-      )}
-    >
-      {gradient && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-ig opacity-[0.07]"
-        />
-      )}
+    <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5 transition-all hover:shadow-md hover:border-border group">
+      <div className={cn("absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl", accentClass)} />
       <div className="flex items-start justify-between">
-        <div
-          className={cn(
-            "flex size-10 items-center justify-center rounded-xl",
-            gradient
-              ? "bg-gradient-ig text-white"
-              : "bg-muted text-muted-foreground",
-          )}
-        >
+        <div className={cn("flex size-10 items-center justify-center rounded-xl", iconBgClass)}>
           {icon}
         </div>
       </div>
@@ -67,68 +56,9 @@ function StatCard({ icon, label, value, sub, gradient }: StatCardProps): ReactEl
   );
 }
 
-const HOW_IT_WORKS = [
-  {
-    step: "01",
-    title: "Create a Campaign",
-    desc: "Set your budget, niche, and deliverables. Go live in minutes.",
-    icon: <Megaphone className="size-5" />,
-  },
-  {
-    step: "02",
-    title: "Receive Bids",
-    desc: "Verified creators pitch their ideas and rates directly to you.",
-    icon: <Gavel className="size-5" />,
-  },
-  {
-    step: "03",
-    title: "Pick a Creator",
-    desc: "Review profiles, authenticity scores, and past work. Choose the best fit.",
-    icon: <Users className="size-5" />,
-  },
-] as const;
-
-const MOCK_CREATORS = [
-  {
-    name: "Priya Sharma",
-    handle: "@priya.creates",
-    niche: ["Fashion", "Lifestyle"],
-    followers: "180K",
-    platform: "Instagram" as const,
-    score: 94,
-    initials: "PS",
-  },
-  {
-    name: "Arjun Tech",
-    handle: "@arjun.tech",
-    niche: ["Tech", "Reviews"],
-    followers: "220K",
-    platform: "YouTube" as const,
-    score: 91,
-    initials: "AT",
-  },
-  {
-    name: "Sneha Verma",
-    handle: "@sneha.eats",
-    niche: ["Food", "Travel"],
-    followers: "95K",
-    platform: "Instagram" as const,
-    score: 97,
-    initials: "SV",
-  },
-  {
-    name: "Rahul Fitness",
-    handle: "@rahul.fit",
-    niche: ["Fitness", "Health"],
-    followers: "310K",
-    platform: "YouTube" as const,
-    score: 88,
-    initials: "RF",
-  },
-] as const;
-
 export function BrandDashboard({ brand }: BrandDashboardProps): ReactElement {
   const firstName = brand.brandName.split(" ")[0];
+  const { data: creatorsData, isLoading: creatorsLoading } = useCreators({ limit: 4 });
 
   return (
     <div className="relative space-y-8">
@@ -161,31 +91,29 @@ export function BrandDashboard({ brand }: BrandDashboardProps): ReactElement {
 
         <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Badge className="bg-gradient-ig text-white border-transparent text-xs font-semibold px-2.5">
-                <Sparkles className="mr-1 size-3" />
-                Brand Account
-              </Badge>
-            </div>
+            <Badge className="bg-gradient-ig text-white border-transparent text-xs font-semibold px-2.5">
+              <Sparkles className="mr-1 size-3" />
+              Brand Account
+            </Badge>
             <h1 className="text-3xl font-bold text-foreground md:text-4xl">
               Welcome back,{" "}
               <span className="text-gradient-ig">{firstName}</span>
             </h1>
             <p className="text-base text-muted-foreground max-w-md">
-              Your creator marketplace is ready. Launch your first campaign and start reaching the right audience.
+              Your creator marketplace is ready. Launch a campaign and start reaching the right audience.
             </p>
           </div>
 
           <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
             <Link
-              href={ROUTES.brand.campaigns}
+              href={ROUTES.brand.campaignCreate}
               className={cn(
                 buttonVariants({ size: "lg" }),
                 "gap-2 bg-gradient-ig text-white border-transparent hover:opacity-90 shadow-lg",
               )}
             >
               <Plus className="size-4" />
-              Create Campaign
+              New Campaign
             </Link>
             <Link
               href={ROUTES.brand.creators}
@@ -200,7 +128,7 @@ export function BrandDashboard({ brand }: BrandDashboardProps): ReactElement {
 
       {/* ── Stats row ── */}
       <section>
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+        <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Overview
         </h2>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -209,95 +137,126 @@ export function BrandDashboard({ brand }: BrandDashboardProps): ReactElement {
             label="Active Campaigns"
             value="0"
             sub="None yet — create one now"
-            gradient
+            accentClass="bg-gradient-ig"
+            iconBgClass="bg-gradient-ig text-white"
           />
           <StatCard
             icon={<Gavel className="size-5" />}
-            label="Total Bids Received"
+            label="Bids Received"
             value="0"
             sub="Waiting for your first campaign"
+            accentClass="bg-blue-500"
+            iconBgClass="bg-blue-500/10 text-blue-500"
           />
           <StatCard
             icon={<Handshake className="size-5" />}
             label="Ongoing Collabs"
             value="0"
             sub="No active collaborations yet"
+            accentClass="bg-emerald-500"
+            iconBgClass="bg-emerald-500/10 text-emerald-500"
           />
           <StatCard
             icon={<IndianRupee className="size-5" />}
             label="Total Spent"
             value="₹0"
-            sub="All payments secured via escrow"
+            sub="Secured via escrow"
+            accentClass="bg-amber-500"
+            iconBgClass="bg-amber-500/10 text-amber-500"
           />
         </div>
       </section>
 
-      {/* ── Create campaign CTA card ── */}
+      {/* ── How it works — path layout ── */}
       <section>
-        <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-border/70 bg-card/50 p-8 text-center transition-colors hover:border-border">
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-ig opacity-[0.03]" />
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-foreground">How CreatorLane works</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">From idea to collab in 3 steps</p>
           </div>
-          <div className="relative z-10 mx-auto max-w-sm space-y-4">
-            <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-gradient-ig text-white shadow-lg">
-              <Megaphone className="size-7" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-foreground">Launch your first campaign</h3>
-              <p className="mt-1.5 text-sm text-muted-foreground">
-                Set your niche, budget, and requirements. Creators will bid within hours.
-              </p>
-            </div>
-            <Link
-              href={ROUTES.brand.campaigns}
-              className={cn(
-                buttonVariants(),
-                "gap-2 bg-gradient-ig text-white border-transparent hover:opacity-90",
-              )}
-            >
-              Get started
-              <ArrowRight className="size-4" />
-            </Link>
-          </div>
+          <Badge variant="secondary" className="text-xs">3 steps</Badge>
         </div>
-      </section>
 
-      {/* ── How it works ── */}
-      <section>
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">How CreatorLane works</h2>
-          <Badge variant="secondary" className="text-xs">
-            3 simple steps
-          </Badge>
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
+        {/* Desktop: S-curve path with nodes */}
+        <div className="relative hidden md:grid md:grid-cols-3 md:gap-8" style={{ minHeight: "260px" }}>
+          {/* Dashed gradient path connecting the three nodes */}
+          <svg
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+            viewBox="0 0 600 260"
+            preserveAspectRatio="none"
+            fill="none"
+          >
+            <defs>
+              <linearGradient id="howItWorksPathGrad" x1="0" y1="0" x2="1" y2="0" gradientUnits="objectBoundingBox">
+                <stop offset="0%" stopColor="var(--grad-from)" stopOpacity="0.6" />
+                <stop offset="50%" stopColor="var(--grad-via)" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="var(--grad-to)" stopOpacity="0.6" />
+              </linearGradient>
+            </defs>
+            {/*
+              Node 1 center ≈ (100, 36)  — col-1 midpoint, top (no margin)
+              Node 2 center ≈ (300, 132) — col-2 midpoint, shifted down by mt-24 (96px) + half node (36px)
+              Node 3 center ≈ (500, 36)  — col-3 midpoint, top (no margin)
+            */}
+            <path
+              d="M 100 36 C 200 36, 200 132, 300 132 C 400 132, 400 36, 500 36"
+              stroke="url(#howItWorksPathGrad)"
+              strokeWidth="2.5"
+              strokeDasharray="10 7"
+              strokeLinecap="round"
+              style={{ animation: "dash-flow 1.2s linear infinite" }}
+            />
+          </svg>
+
           {HOW_IT_WORKS.map((step, idx) => (
             <div
               key={step.step}
-              className="relative rounded-2xl border border-border/60 bg-card p-6 transition-all hover:shadow-md"
-            >
-              <div className="flex items-start gap-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-ig text-white shadow-sm">
-                  {step.icon}
-                </div>
-                <div className="min-w-0">
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <span className="text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase">
-                      Step {step.step}
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-bold text-foreground">{step.title}</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{step.desc}</p>
-                </div>
-              </div>
-              {idx < HOW_IT_WORKS.length - 1 && (
-                <div
-                  aria-hidden="true"
-                  className="absolute -right-2 top-1/2 hidden -translate-y-1/2 md:block"
-                >
-                  <ArrowRight className="size-4 text-muted-foreground/40" />
-                </div>
+              className={cn(
+                "relative z-10 flex flex-col items-center text-center",
+                idx === 1 && "mt-24",
               )}
+            >
+              {/* Node circle */}
+              <div className="relative flex size-[72px] items-center justify-center rounded-full bg-gradient-ig text-white shadow-xl ring-4 ring-background">
+                <step.Icon className="size-7" />
+                {/* Step number badge */}
+                <span className="absolute -right-1 -top-1 flex size-[22px] items-center justify-center rounded-full border-2 border-background bg-foreground text-[10px] font-bold text-background shadow-sm">
+                  {idx + 1}
+                </span>
+              </div>
+
+              {/* Content */}
+              <div className="mt-5 max-w-[180px] space-y-1.5">
+                <h3 className="text-sm font-bold text-foreground">{step.title}</h3>
+                <p className="text-xs leading-relaxed text-muted-foreground">{step.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Mobile: vertical timeline */}
+        <div className="md:hidden">
+          {HOW_IT_WORKS.map((step, idx) => (
+            <div key={step.step} className="flex gap-4">
+              <div className="flex flex-col items-center">
+                <div className="relative z-10 flex size-11 shrink-0 items-center justify-center rounded-full bg-gradient-ig text-white shadow-md ring-2 ring-background">
+                  <step.Icon className="size-5" />
+                  <span className="absolute -right-0.5 -top-0.5 flex size-[18px] items-center justify-center rounded-full border-2 border-background bg-foreground text-[9px] font-bold text-background">
+                    {idx + 1}
+                  </span>
+                </div>
+                {idx < HOW_IT_WORKS.length - 1 && (
+                  <div className="my-1.5 w-0.5 flex-1 bg-gradient-to-b from-border to-border/10" style={{ minHeight: "36px" }} />
+                )}
+              </div>
+              <div className={cn("pb-7 pt-2", idx === HOW_IT_WORKS.length - 1 && "pb-0")}>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                  Step {idx + 1}
+                </p>
+                <h3 className="mt-0.5 text-sm font-bold text-foreground">{step.title}</h3>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{step.desc}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -309,7 +268,7 @@ export function BrandDashboard({ brand }: BrandDashboardProps): ReactElement {
           <div>
             <h2 className="text-lg font-bold text-foreground">Explore Creators</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Get a feel for the talent on CreatorLane — verified, scored, ready to collab.
+              Verified, scored, and ready to collab.
             </p>
           </div>
           <Link
@@ -325,9 +284,42 @@ export function BrandDashboard({ brand }: BrandDashboardProps): ReactElement {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {MOCK_CREATORS.map((creator) => (
-            <CreatorPreviewCard key={creator.handle} {...creator} />
-          ))}
+          {creatorsLoading
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-2xl border border-border/60 bg-card p-5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="size-10 rounded-full" />
+                    <div className="space-y-1.5 flex-1">
+                      <Skeleton className="h-4 w-24 rounded" />
+                      <Skeleton className="h-3 w-16 rounded" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-8 rounded" />
+                  <div className="flex gap-1">
+                    <Skeleton className="h-5 w-14 rounded-full" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="h-8 rounded-xl" />
+                </div>
+              ))
+            : (creatorsData?.items ?? []).map((creator) => (
+                <CreatorPreviewCard
+                  key={creator.id}
+                  name={creator.fullName}
+                  handle={creator.instagramHandle}
+                  niche={creator.niche}
+                  followers={formatFollowers(creator.instagramFollowers)}
+                  platform={
+                    creator.platform === CreatorPlatform.YOUTUBE ? "YouTube" : "Instagram"
+                  }
+                  score={
+                    creator.instagramAuthenticityScore ??
+                    creator.youtubeAuthenticityScore ??
+                    0
+                  }
+                  initials={getInitials(creator.fullName)}
+                />
+              ))}
         </div>
       </section>
     </div>

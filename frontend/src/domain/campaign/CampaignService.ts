@@ -1,5 +1,10 @@
 import { normalizeError } from "@/lib/api/error-handler";
 import type { Campaign, BrandCampaignFilters, PaginatedCampaigns } from "@/types/campaign.types";
+import type {
+  CampaignBrowseDetail,
+  CampaignBrowseFilters,
+  PaginatedCampaignBrowse,
+} from "@/types/creator.types";
 import type { ICampaignRepository, ICreateCampaignPayload } from "./ICampaignRepository";
 
 export class CampaignService {
@@ -56,6 +61,22 @@ export class CampaignService {
   async closeCampaign(id: string): Promise<Campaign> {
     try {
       return await this.repo.closeCampaign(id);
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  async browseCampaigns(filters: CampaignBrowseFilters): Promise<PaginatedCampaignBrowse> {
+    try {
+      return await this.repo.browseCampaigns(filters);
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  async getCampaignDetailForCreator(slug: string): Promise<CampaignBrowseDetail> {
+    try {
+      return await this.repo.getCampaignDetailForCreator(slug);
     } catch (error) {
       throw normalizeError(error);
     }

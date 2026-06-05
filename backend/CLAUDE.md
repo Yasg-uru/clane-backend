@@ -791,6 +791,7 @@ Global Redis key namespaces in use:
 | `cache:campaign:detail:*` | `CampaignCacheManager` |
 | `cache:bids:campaign:*` | `BidCacheManager` |
 | `cache:bids:creator:*` | `BidCacheManager` |
+| `cache:creators:browse:*` | `CreatorCacheManager` |
 
 When adding a new namespace, add it to this table.
 

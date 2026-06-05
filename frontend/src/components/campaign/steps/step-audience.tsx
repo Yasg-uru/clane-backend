@@ -9,13 +9,8 @@ import { FieldError } from "@/components/auth/field-error";
 import { useCampaignWizardStore } from "@/stores/campaign-wizard.store";
 import { step2Schema } from "@/schemas/campaign.schema";
 import { TargetGender, CampaignPlatform } from "@/types/campaign.types";
+import { GENDER_OPTIONS } from "@/config/campaign.config";
 import { cn } from "@/lib/utils";
-
-const GENDER_OPTIONS = [
-  { value: TargetGender.ANY, label: "Any" },
-  { value: TargetGender.FEMALE, label: "Female" },
-  { value: TargetGender.MALE, label: "Male" },
-] as const;
 
 export function StepAudience(): ReactElement {
   const { data, updateData, nextStep, prevStep } = useCampaignWizardStore();

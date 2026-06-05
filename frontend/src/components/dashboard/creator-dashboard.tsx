@@ -21,7 +21,10 @@ import { Separator } from "@/components/ui/separator";
 import { buttonVariants } from "@/components/ui/button";
 import { GradientOrb } from "@/components/common/gradient-orb";
 import type { SafeCreator } from "@/types";
+import { useBrowseCampaigns } from "@/hooks/campaign/useCampaigns";
 import { ROUTES } from "@/config/routes.config";
+import { formatCurrency, formatDeadline } from "@/lib/formatters";
+import { CampaignPlatform } from "@/types/campaign.types";
 import { cn } from "@/lib/utils";
 
 type CreatorDashboardProps = {
@@ -33,30 +36,16 @@ type StatCardProps = {
   label: string;
   value: string;
   sub?: string;
-  gradient?: boolean;
+  accentClass: string;
+  iconBgClass: string;
 };
 
-function StatCard({ icon, label, value, sub, gradient }: StatCardProps): ReactElement {
+function StatCard({ icon, label, value, sub, accentClass, iconBgClass }: StatCardProps): ReactElement {
   return (
-    <div
-      className={cn(
-        "relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5 transition-all hover:shadow-md",
-        gradient && "border-transparent",
-      )}
-    >
-      {gradient && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-ig opacity-[0.07]"
-        />
-      )}
+    <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5 transition-all hover:shadow-md hover:border-border">
+      <div className={cn("absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl", accentClass)} />
       <div className="flex items-start justify-between">
-        <div
-          className={cn(
-            "flex size-10 items-center justify-center rounded-xl",
-            gradient ? "bg-gradient-ig text-white" : "bg-muted text-muted-foreground",
-          )}
-        >
+        <div className={cn("flex size-10 items-center justify-center rounded-xl", iconBgClass)}>
           {icon}
         </div>
       </div>
@@ -67,42 +56,10 @@ function StatCard({ icon, label, value, sub, gradient }: StatCardProps): ReactEl
   );
 }
 
-const MOCK_CAMPAIGNS = [
-  {
-    id: "c1",
-    brand: "Nykaa Beauty",
-    title: "Summer Glow — Skincare Collection Launch",
-    niche: ["Beauty", "Skincare"],
-    budget: "₹25K – ₹50K",
-    deadline: "12 days left",
-    platform: "Instagram" as const,
-    bids: 14,
-  },
-  {
-    id: "c2",
-    brand: "boAt Lifestyle",
-    title: "Noise-Cancelling Headphones Review & Unboxing",
-    niche: ["Tech", "Reviews"],
-    budget: "₹15K – ₹30K",
-    deadline: "7 days left",
-    platform: "YouTube" as const,
-    bids: 9,
-  },
-  {
-    id: "c3",
-    brand: "Swiggy Instamart",
-    title: "10-Minute Grocery Delivery — Creator Series",
-    niche: ["Food", "Lifestyle"],
-    budget: "₹20K – ₹40K",
-    deadline: "18 days left",
-    platform: "Instagram" as const,
-    bids: 22,
-  },
-] as const;
-
 export function CreatorDashboard({ creator }: CreatorDashboardProps): ReactElement {
   const firstName = creator.fullName.split(" ")[0];
   const score = creator.instagramAuthenticityScore ?? 0;
+  const { data: campaignsData } = useBrowseCampaigns({ limit: 3 });
 
   const completionItems = [
     {
@@ -280,7 +237,7 @@ export function CreatorDashboard({ creator }: CreatorDashboardProps): ReactEleme
 
       {/* ── Stats row ── */}
       <section>
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+        <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Your Overview
         </h2>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -289,54 +246,33 @@ export function CreatorDashboard({ creator }: CreatorDashboardProps): ReactEleme
             label="Bids Submitted"
             value="0"
             sub="Start bidding on campaigns"
-            gradient
+            accentClass="bg-gradient-ig"
+            iconBgClass="bg-gradient-ig text-white"
           />
           <StatCard
             icon={<Handshake className="size-5" />}
             label="Active Collabs"
             value="0"
             sub="No active collaborations yet"
+            accentClass="bg-emerald-500"
+            iconBgClass="bg-emerald-500/10 text-emerald-500"
           />
           <StatCard
             icon={<IndianRupee className="size-5" />}
             label="Total Earnings"
             value="₹0"
             sub="Payments via Razorpay"
+            accentClass="bg-amber-500"
+            iconBgClass="bg-amber-500/10 text-amber-500"
           />
           <StatCard
             icon={<ShieldCheck className="size-5" />}
             label="Authenticity Score"
             value={score > 0 ? `${score}` : "—"}
             sub={score > 0 ? "Instagram verified" : "Connect Instagram to compute"}
+            accentClass="bg-blue-500"
+            iconBgClass="bg-blue-500/10 text-blue-500"
           />
-        </div>
-      </section>
-
-      {/* ── Browse Campaigns CTA ── */}
-      <section className="relative overflow-hidden rounded-2xl border-2 border-dashed border-border/70 bg-card/50 p-8 text-center transition-colors hover:border-border">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-0 rounded-2xl bg-gradient-ig opacity-[0.03]" />
-        </div>
-        <div className="relative z-10 mx-auto max-w-sm space-y-4">
-          <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-gradient-ig text-white shadow-lg">
-            <Compass className="size-7" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-foreground">Find your first campaign</h3>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Browse active campaigns in your niche and submit your bid — brands are waiting.
-            </p>
-          </div>
-          <Link
-            href={ROUTES.creator.discover}
-            className={cn(
-              buttonVariants(),
-              "gap-2 bg-gradient-ig text-white border-transparent hover:opacity-90",
-            )}
-          >
-            Discover campaigns
-            <ArrowRight className="size-4" />
-          </Link>
         </div>
       </section>
 
@@ -362,9 +298,23 @@ export function CreatorDashboard({ creator }: CreatorDashboardProps): ReactEleme
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          {MOCK_CAMPAIGNS.map((campaign) => (
-            <CampaignPreviewCard key={campaign.id} {...campaign} />
-          ))}
+          {(campaignsData?.items ?? []).map((campaign) => {
+            const { text: deadlineText } = formatDeadline(campaign.deadline);
+            return (
+              <CampaignPreviewCard
+                key={campaign._id}
+                brand={campaign.brandName}
+                title={campaign.title}
+                niche={campaign.niche}
+                budget={formatCurrency(campaign.budgetAmount)}
+                deadline={deadlineText}
+                platform={
+                  campaign.platform === CampaignPlatform.YOUTUBE ? "YouTube" : "Instagram"
+                }
+                bids={campaign.totalBids}
+              />
+            );
+          })}
         </div>
       </section>
     </div>

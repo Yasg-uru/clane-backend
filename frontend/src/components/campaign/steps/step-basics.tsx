@@ -2,8 +2,7 @@
 
 import type { ReactElement } from "react";
 import { useForm } from "@tanstack/react-form";
-import { ArrowRight, Globe } from "lucide-react";
-import { FaInstagram, FaYoutube } from "react-icons/fa";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,36 +10,8 @@ import { FieldError } from "@/components/auth/field-error";
 import { useCampaignWizardStore } from "@/stores/campaign-wizard.store";
 import { step1Schema } from "@/schemas/campaign.schema";
 import { CampaignPlatform } from "@/types/campaign.types";
+import { PLATFORM_OPTIONS, NICHE_OPTIONS } from "@/config/campaign.config";
 import { cn } from "@/lib/utils";
-
-const PLATFORM_OPTIONS = [
-  {
-    value: CampaignPlatform.INSTAGRAM,
-    label: "Instagram",
-    icon: <FaInstagram className="size-5" />,
-    desc: "Reels, posts, stories",
-  },
-  {
-    value: CampaignPlatform.YOUTUBE,
-    label: "YouTube",
-    icon: <FaYoutube className="size-5" />,
-    desc: "Videos & shorts",
-  },
-  {
-    value: CampaignPlatform.BOTH,
-    label: "Both",
-    icon: <Globe className="size-5" />,
-    desc: "Instagram + YouTube",
-  },
-] as const;
-
-const NICHE_OPTIONS = [
-  "Fashion", "Beauty", "Skincare", "Fitness", "Health",
-  "Food", "Travel", "Tech", "Gaming", "Music",
-  "Comedy", "Lifestyle", "Parenting", "Education", "Finance",
-  "Automotive", "Sports", "Photography", "Art", "Entertainment",
-  "Business", "Wellness", "Home Decor", "Dance",
-];
 
 export function StepBasics(): ReactElement {
   const { data, updateData, nextStep } = useCampaignWizardStore();
@@ -110,7 +81,7 @@ export function StepBasics(): ReactElement {
                       : "border-border bg-card hover:border-border/80 hover:bg-muted/40",
                   )}
                 >
-                  {opt.icon}
+                  <opt.Icon className={opt.iconClass} />
                   <span className="text-sm font-semibold">{opt.label}</span>
                   <span
                     className={cn(

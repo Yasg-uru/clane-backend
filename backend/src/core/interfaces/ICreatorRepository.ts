@@ -1,5 +1,7 @@
 import type { Creator, CreatorDocument, AuthenticityRisk } from "../../models/Creator.model";
 import type { IAuthRepository } from "./IRepository";
+import type { PaginatedResult } from "../types";
+import type { CreatorBrowseFilters } from "../../modules/creator/creator.types";
 
 export interface InstagramPlatformData {
   instagramFollowers?: number;
@@ -46,4 +48,5 @@ export interface ICreatorRepository extends IAuthRepository<CreatorDocument, Cre
   findCreatorsForYoutubeRefresh(): Promise<CreatorDocument[]>;
   findAllActive(): Promise<CreatorDocument[]>;
   findByIds(ids: string[]): Promise<CreatorDocument[]>;
+  findWithBrowseFilters(filters: CreatorBrowseFilters, page: number, limit: number): Promise<PaginatedResult<CreatorDocument>>;
 }

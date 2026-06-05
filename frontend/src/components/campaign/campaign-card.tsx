@@ -24,24 +24,10 @@ import {
 } from "@/hooks/campaign/useCampaigns";
 import type { Campaign } from "@/types/campaign.types";
 import { CampaignStatus, CampaignPlatform } from "@/types/campaign.types";
+import { CAMPAIGN_STATUS_CONFIG } from "@/config/status.config";
+import { getDaysLeft } from "@/lib/formatters";
 import { ROUTES } from "@/config/routes.config";
 import { cn } from "@/lib/utils";
-
-const STATUS_STYLE: Record<CampaignStatus, string> = {
-  [CampaignStatus.DRAFT]: "bg-muted text-muted-foreground border-border",
-  [CampaignStatus.ACTIVE]: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400",
-  [CampaignStatus.CLOSED]: "bg-muted text-muted-foreground border-border",
-  [CampaignStatus.IN_PROGRESS]: "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400",
-  [CampaignStatus.COMPLETED]: "bg-violet-500/10 text-violet-600 border-violet-500/20 dark:text-violet-400",
-};
-
-const STATUS_LABEL: Record<CampaignStatus, string> = {
-  [CampaignStatus.DRAFT]: "Draft",
-  [CampaignStatus.ACTIVE]: "Active",
-  [CampaignStatus.CLOSED]: "Closed",
-  [CampaignStatus.IN_PROGRESS]: "In Progress",
-  [CampaignStatus.COMPLETED]: "Completed",
-};
 
 type CampaignCardProps = {
   campaign: Campaign;
@@ -57,8 +43,7 @@ export function CampaignCard({ campaign }: CampaignCardProps): ReactElement {
   const isInstagram = campaign.platform === CampaignPlatform.INSTAGRAM;
   const isYouTube = campaign.platform === CampaignPlatform.YOUTUBE;
 
-  const deadlineDate = new Date(campaign.deadline);
-  const daysLeft = Math.ceil((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  const daysLeft = getDaysLeft(campaign.deadline);
   const isExpired = daysLeft < 0;
 
   return (
@@ -70,11 +55,11 @@ export function CampaignCard({ campaign }: CampaignCardProps): ReactElement {
             <Badge
               className={cn(
                 "text-[10px] font-semibold px-2 py-0.5 border",
-                STATUS_STYLE[campaign.status],
+                CAMPAIGN_STATUS_CONFIG[campaign.status].style,
               )}
               variant="outline"
             >
-              {STATUS_LABEL[campaign.status]}
+              {CAMPAIGN_STATUS_CONFIG[campaign.status].label}
             </Badge>
             <div className="flex items-center gap-1 rounded-md bg-muted px-2 py-0.5">
               {isInstagram ? (

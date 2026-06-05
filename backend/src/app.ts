@@ -12,6 +12,7 @@ import type { BidController } from "./modules/bid/BidController";
 import type { EscrowController } from "./modules/escrow/EscrowController";
 import type { CollabController } from "./modules/collab/CollabController";
 import type { NotificationController } from "./modules/notification/NotificationController";
+import type { CreatorController } from "./modules/creator/CreatorController";
 import type { AuthMiddleware } from "./infrastructure/middleware/AuthMiddleware";
 import type { SocialAuthMiddleware } from "./infrastructure/middleware/SocialAuthMiddleware";
 import type { RateLimiterMiddleware } from "./infrastructure/middleware/RateLimiterMiddleware";
@@ -24,6 +25,7 @@ import { createBidRouter } from "./modules/bid/bid.routes";
 import { createNotificationRouter } from "./modules/notification/notification.routes";
 import { createEscrowRouter, createWebhookRouter } from "./modules/escrow/escrow.routes";
 import { createCollabRouter } from "./modules/collab/collab.routes";
+import { createCreatorRouter } from "./modules/creator/creator.routes";
 
 export class App {
   private readonly express: Application;
@@ -35,6 +37,7 @@ export class App {
     private readonly escrowController: EscrowController,
     private readonly collabController: CollabController,
     private readonly notificationController: NotificationController,
+    private readonly creatorController: CreatorController,
     private readonly authMiddleware: AuthMiddleware,
     private readonly socialAuthMiddleware: SocialAuthMiddleware,
     private readonly rateLimiter: RateLimiterMiddleware,
@@ -122,6 +125,11 @@ export class App {
     this.express.use(
       "/api/v1/collab",
       createCollabRouter(this.collabController, this.authMiddleware),
+    );
+
+    this.express.use(
+      "/api/v1/creators",
+      createCreatorRouter(this.creatorController, this.authMiddleware),
     );
   }
 

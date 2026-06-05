@@ -47,6 +47,9 @@ import { CollabController } from "./modules/collab/CollabController";
 import { CollabService } from "./modules/collab/CollabService";
 import { NotificationService } from "./modules/notification/NotificationService";
 import { NotificationController } from "./modules/notification/NotificationController";
+import { CreatorService } from "./modules/creator/CreatorService";
+import { CreatorController } from "./modules/creator/CreatorController";
+import { CreatorCacheManager } from "./modules/creator/CreatorCacheManager";
 import { AccountLookupRepository } from "./infrastructure/repositories/AccountLookupRepository";
 import { NicheScorer } from "./modules/campaign/scoring/NicheScorer";
 import { PlatformScorer } from "./modules/campaign/scoring/PlatformScorer";
@@ -114,6 +117,7 @@ const buildServer = (): Server => {
   // ─── Cache managers ─────────────────────────────────────────────────────────
   const campaignCache = new CampaignCacheManager(cacheService);
   const bidCache = new BidCacheManager(cacheService);
+  const creatorCache = new CreatorCacheManager(cacheService);
 
   // ─── Scorers ────────────────────────────────────────────────────────────────
   const matchScorer = new MatchScorer(
@@ -202,12 +206,14 @@ const buildServer = (): Server => {
 
   const collabService = new CollabService(collabRoomRepository);
   const notificationService = new NotificationService(notificationRepository);
+  const creatorBrowseService = new CreatorService(creatorRepository, creatorCache);
 
   const campaignController = new CampaignController(campaignService);
   const bidController = new BidController(bidService);
   const escrowController = new EscrowController(escrowService);
   const collabController = new CollabController(collabService);
   const notificationController = new NotificationController(notificationService);
+  const creatorController = new CreatorController(creatorBrowseService);
 
   // ─── Workers & Jobs ─────────────────────────────────────────────────────────
   const matchScoreWorker = new MatchScoreWorker(
@@ -251,6 +257,7 @@ const buildServer = (): Server => {
     escrowController,
     collabController,
     notificationController,
+    creatorController,
     authMiddleware,
     socialAuthMiddleware,
     rateLimiter,

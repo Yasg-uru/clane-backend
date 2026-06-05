@@ -1,3 +1,4 @@
+import type { FilterQuery } from "mongoose";
 import { CreatorModel, type Creator, type CreatorDocument } from "../../models/Creator.model";
 import type {
   ICreatorRepository,
@@ -5,7 +6,9 @@ import type {
   YoutubePlatformData,
   YoutubeTokenData,
 } from "../../core/interfaces/ICreatorRepository";
-import type { AuthenticityRisk, WriteData } from "../../core/types";
+import type { AuthenticityRisk, PaginatedResult, WriteData } from "../../core/types";
+import { CreatorPlatform } from "../../modules/creator/creator.types";
+import type { CreatorBrowseFilters } from "../../modules/creator/creator.types";
 import { BaseRepository } from "./BaseRepository";
 
 const REFRESH_CUTOFF_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -152,5 +155,51 @@ export class CreatorRepository
 
   async findByIds(ids: string[]): Promise<CreatorDocument[]> {
     return CreatorModel.find({ _id: { $in: ids } }).exec();
+  }
+
+  async findWithBrowseFilters(
+    filters: CreatorBrowseFilters,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedResult<CreatorDocument>> {
+    const query: FilterQuery<CreatorDocument> = {
+      isEmailVerified: true,
+      isProfileComplete: true,
+    };
+
+    if (filters.niche?.length) {
+      query.niche = { $in: filters.niche };
+    }
+
+    if (filters.city) {
+      query.city = { $regex: filters.city, $options: "i" };
+    }
+
+    if (filters.followersMin !== undefined || filters.followersMax !== undefined) {
+      const followersFilter: { $gte?: number; $lte?: number } = {};
+      if (filters.followersMin !== undefined) followersFilter.$gte = filters.followersMin;
+      if (filters.followersMax !== undefined) followersFilter.$lte = filters.followersMax;
+      query.instagramFollowers = followersFilter;
+    }
+
+    if (filters.platform === CreatorPlatform.Instagram) {
+      query.instagramConnected = true;
+    } else if (filters.platform === CreatorPlatform.YouTube) {
+      query.youtubeConnected = true;
+    } else if (filters.platform === CreatorPlatform.Both) {
+      query.instagramConnected = true;
+      query.youtubeConnected = true;
+    }
+
+    const [total, items] = await Promise.all([
+      CreatorModel.countDocuments(query),
+      CreatorModel.find(query)
+        .sort({ instagramFollowers: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
+    ]);
+
+    return this.buildPaginatedResult(items, total, page, limit);
   }
 }

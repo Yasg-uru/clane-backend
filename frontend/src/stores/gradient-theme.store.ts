@@ -9,8 +9,10 @@ import {
 } from "@/types/gradient-theme.types";
 
 interface GradientThemeState {
+  _hasHydrated: boolean;
   activeThemeId: string;
   customThemes: GradientTheme[];
+  setHasHydrated: (val: boolean) => void;
   setTheme: (id: string) => void;
   getActiveTheme: () => GradientTheme;
   getAllThemes: () => GradientTheme[];
@@ -21,9 +23,11 @@ interface GradientThemeState {
 export const useGradientThemeStore = create<GradientThemeState>()(
   persist(
     (set, get) => ({
+      _hasHydrated: false,
       activeThemeId: GradientThemeId.INSTAGRAM,
       customThemes: [],
 
+      setHasHydrated: (val) => set({ _hasHydrated: val }),
       setTheme: (id) => set({ activeThemeId: id }),
 
       getAllThemes: () => [...GRADIENT_THEMES, ...get().customThemes],
@@ -46,6 +50,9 @@ export const useGradientThemeStore = create<GradientThemeState>()(
     }),
     {
       name: "clane-gradient-theme",
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );

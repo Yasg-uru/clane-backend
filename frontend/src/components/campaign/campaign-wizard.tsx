@@ -9,14 +9,7 @@ import { StepBudget } from "./steps/step-budget";
 import { StepContent } from "./steps/step-content";
 import { StepReview } from "./steps/step-review";
 import { useCampaignWizardStore } from "@/stores/campaign-wizard.store";
-
-const STEP_META = [
-  { title: "Campaign Basics", desc: "Name your campaign, pick the platform and niche." },
-  { title: "Target Audience", desc: "Define who the creator's audience should be." },
-  { title: "Budget & Timeline", desc: "Set your budget, bid deadline, and delivery type." },
-  { title: "Content Brief", desc: "Tell creators exactly what you need them to produce." },
-  { title: "Review & Launch", desc: "Double-check everything before saving or publishing." },
-] as const;
+import { STEP_META } from "@/config/campaign.config";
 
 function renderStep(step: number): ReactElement {
   switch (step) {

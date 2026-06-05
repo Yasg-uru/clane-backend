@@ -8,20 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { FieldError } from "@/components/auth/field-error";
 import { useCampaignWizardStore } from "@/stores/campaign-wizard.store";
 import { step4Schema } from "@/schemas/campaign.schema";
+import { REVISION_OPTIONS, BRIEF_PROMPTS } from "@/config/campaign.config";
 import { cn } from "@/lib/utils";
-
-const REVISION_OPTIONS = [
-  { value: 1 as const, label: "1 round", desc: "One revision included" },
-  { value: 2 as const, label: "2 rounds", desc: "Two revisions included" },
-] as const;
-
-const BRIEF_PROMPTS = [
-  "What is the campaign about?",
-  "What tone / mood should the content have?",
-  "What are the key messages to highlight?",
-  "Any specific hashtags or mentions required?",
-  "What's the call-to-action?",
-];
 
 export function StepContent(): ReactElement {
   const { data, updateData, nextStep, prevStep } = useCampaignWizardStore();

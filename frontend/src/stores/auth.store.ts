@@ -1,3 +1,5 @@
+"use client";
+
 import { create } from "zustand";
 import { TokenManager } from "@/domain/auth/TokenManager";
 import type { SafeUser } from "@/types";
@@ -25,12 +27,14 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
   setSession: (user, accessToken) => {
     TokenManager.getInstance().set(accessToken);
-    set({ user, isAuthenticated: true, intermediateToken: null });
+    set({ user, isAuthenticated: true, isHydrated: true, intermediateToken: null });
   },
 
   clearAuth: () => {
     TokenManager.getInstance().clear();
-    set({ user: null, isAuthenticated: false, intermediateToken: null });
+    // Reset isHydrated so useSessionHydration re-runs on next mount and can
+    // re-establish the session from the HTTP-only refresh-token cookie.
+    set({ user: null, isAuthenticated: false, isHydrated: false, intermediateToken: null });
   },
 
   setHydrated: () => set({ isHydrated: true }),
