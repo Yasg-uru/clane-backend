@@ -3,6 +3,23 @@ import { Globe } from "lucide-react";
 import { FaInstagram, FaYoutube } from "react-icons/fa";
 import { CampaignPlatform, CampaignDeliveryType, TargetGender } from "@/types/campaign.types";
 
+export const PLATFORM_LABEL: Record<CampaignPlatform, string> = {
+  [CampaignPlatform.INSTAGRAM]: "Instagram",
+  [CampaignPlatform.YOUTUBE]: "YouTube",
+  [CampaignPlatform.BOTH]: "Instagram + YouTube",
+};
+
+export const GENDER_LABEL: Record<TargetGender, string> = {
+  [TargetGender.ANY]: "Any",
+  [TargetGender.MALE]: "Male",
+  [TargetGender.FEMALE]: "Female",
+};
+
+export const DELIVERY_TYPE_LABEL: Record<CampaignDeliveryType, string> = {
+  [CampaignDeliveryType.ONSITE]: "On-site",
+  [CampaignDeliveryType.REMOTE]: "Remote",
+};
+
 export const NICHE_OPTIONS: string[] = [
   "Fashion", "Beauty", "Skincare", "Fitness", "Health",
   "Food", "Travel", "Tech", "Gaming", "Music",

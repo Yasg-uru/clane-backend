@@ -9,11 +9,15 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { AuthPanelForgot } from "@/components/auth/auth-panel-forgot";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { ROUTES } from "@/config/routes.config";
+import { UserRole } from "@/types";
 
 function ResetPasswordContent(): ReactElement {
   const params = useSearchParams();
   const token = params.get("token");
-  const role = params.get("role");
+  const rawRole = params.get("role");
+  const role = Object.values(UserRole).includes(rawRole as UserRole)
+    ? (rawRole as UserRole)
+    : null;
 
   if (!token || !role) {
     return (

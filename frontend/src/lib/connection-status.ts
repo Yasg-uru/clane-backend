@@ -16,7 +16,7 @@ export function isProviderConnected(
   switch (provider) {
     case SocialProvider.INSTAGRAM:
       return isCreator
-        ? Boolean((user as SafeCreator).instagramProfilePicUrl)
+        ? Boolean((user as SafeCreator).instagramHandle)
         : Boolean((user as SafeBrand).instagramConnected);
     case SocialProvider.YOUTUBE:
       return isCreator ? (user as SafeCreator).youtubeConnected : false;

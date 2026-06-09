@@ -11,10 +11,11 @@ import { useResetPassword } from "@/hooks/auth/useAuth";
 import { resetPasswordFormSchema } from "@/schemas/auth.schema";
 import { ROUTES } from "@/config/routes.config";
 import { FieldError } from "@/components/auth/field-error";
+import { UserRole } from "@/types";
 
 type ResetPasswordFormProps = {
   token: string;
-  role: string;
+  role: UserRole;
 };
 
 export function ResetPasswordForm({ token, role }: ResetPasswordFormProps): React.ReactElement {

@@ -5,9 +5,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SettingsService } from "@/domain/settings/SettingsService";
 import { SettingsRepository } from "@/domain/settings/SettingsRepository";
-import { AuthService } from "@/domain/auth/AuthService";
-import { AuthRepository } from "@/domain/auth/AuthRepository";
-import { TokenManager } from "@/domain/auth/TokenManager";
 import { useAuthStore } from "@/stores/auth.store";
 import type { SafeUser } from "@/types";
 import type {
@@ -17,15 +14,10 @@ import type {
 import { ROUTES } from "@/config/routes.config";
 
 const settingsService = new SettingsService(new SettingsRepository());
-const authService = new AuthService(new AuthRepository());
 
-/** Re-syncs the authenticated user in the store, preserving the active token. */
+/** Re-syncs the authenticated user in the store without touching the active token. */
 function useSyncUser(): (user: SafeUser) => void {
-  const setSession = useAuthStore((s) => s.setSession);
-  return (user: SafeUser) => {
-    const token = TokenManager.getInstance().get() ?? "";
-    setSession(user, token);
-  };
+  return useAuthStore((s) => s.setUser);
 }
 
 export function useUpdateProfile() {
@@ -48,19 +40,6 @@ export function useChangePassword() {
     mutationFn: (data: ChangePasswordInput) => settingsService.changePassword(data),
     onSuccess: () => {
       toast.success("Password changed successfully.");
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-}
-
-export function useConnectSocialAccount() {
-  return useMutation({
-    mutationFn: ({ role, provider }: { role: string; provider: string }) =>
-      authService.connectSocialAccount(role, provider),
-    onSuccess: (url) => {
-      window.location.href = url;
     },
     onError: (error: Error) => {
       toast.error(error.message);

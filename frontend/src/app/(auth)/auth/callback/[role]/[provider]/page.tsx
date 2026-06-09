@@ -4,25 +4,14 @@ import { Suspense, useEffect, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useAuthStore } from "@/stores/auth.store";
-import { AuthService } from "@/domain/auth/AuthService";
-import { AuthRepository } from "@/domain/auth/AuthRepository";
-import { SocialAuthStatus, UserRole } from "@/types";
+import { useSocialCallback } from "@/hooks/auth/useAuth";
 import { ROUTES } from "@/config/routes.config";
-
-const authService = new AuthService(new AuthRepository());
-
-function getDashboardPath(role: string): string {
-  if (role === UserRole.BRAND) return ROUTES.brand.dashboard;
-  return ROUTES.creator.dashboard;
-}
 
 function OAuthCallbackContent() {
   const params = useParams<{ role: string; provider: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const setSession = useAuthStore((s) => s.setSession);
-  const setIntermediateToken = useAuthStore((s) => s.setIntermediateToken);
+  const { mutate } = useSocialCallback();
   const hasRun = useRef(false);
 
   const role = params.role;
@@ -40,36 +29,8 @@ function OAuthCallbackContent() {
       return;
     }
 
-    authService
-      .handleSocialCallback(role, provider, code, state)
-      .then((result) => {
-        if (result.status === SocialAuthStatus.AUTHENTICATED) {
-          if (result.user && result.accessToken) {
-            setSession(result.user, result.accessToken);
-            router.replace(getDashboardPath(role));
-          }
-        } else if (result.status === SocialAuthStatus.PROFILE_INCOMPLETE) {
-          if (result.intermediateToken) {
-            setIntermediateToken(result.intermediateToken);
-          }
-          router.replace(ROUTES.auth.completeProfile(role));
-        } else if (result.status === SocialAuthStatus.PENDING_EMAIL_SUBMISSION) {
-          if (result.intermediateToken) {
-            setIntermediateToken(result.intermediateToken);
-          }
-          router.replace(ROUTES.auth.instagramEmail(role));
-        } else if (result.status === SocialAuthStatus.PENDING_EMAIL_VERIFICATION) {
-          if (result.intermediateToken) {
-            setIntermediateToken(result.intermediateToken);
-          }
-          router.replace(ROUTES.auth.verifyEmail);
-        }
-      })
-      .catch((error: Error) => {
-        toast.error(error.message ?? "Authentication failed. Please try again.");
-        router.replace(ROUTES.auth.login);
-      });
-  }, [code, state, role, provider, router, setSession, setIntermediateToken]);
+    mutate({ role, provider, code, state });
+  }, [code, state, role, provider, mutate, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">

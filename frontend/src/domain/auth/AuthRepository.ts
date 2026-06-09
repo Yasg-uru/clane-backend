@@ -5,6 +5,7 @@ import type {
   SocialAuthCallbackResult,
   OAuthInitiateResult,
 } from "@/types";
+import { UserRole } from "@/types";
 import type {
   BrandRegisterInput,
   CreatorRegisterInput,
@@ -28,7 +29,7 @@ export interface IAuthRepository {
   refresh(): Promise<RefreshResult>;
   logout(): Promise<void>;
   forgotPassword(data: ForgotPasswordInput): Promise<void>;
-  resetPassword(data: { token: string; newPassword: string; role: string }): Promise<void>;
+  resetPassword(data: { token: string; newPassword: string; role: UserRole }): Promise<void>;
   initiateSocialAuth(role: string, provider: string): Promise<string>;
   handleSocialCallback(
     role: string,
@@ -88,7 +89,7 @@ export class AuthRepository implements IAuthRepository {
     await apiClient.post<ApiResponse<void>>(AUTH_ENDPOINTS.forgotPassword, data);
   }
 
-  async resetPassword(data: { token: string; newPassword: string; role: string }): Promise<void> {
+  async resetPassword(data: { token: string; newPassword: string; role: UserRole }): Promise<void> {
     await apiClient.post<ApiResponse<void>>(AUTH_ENDPOINTS.resetPassword, data);
   }
 
@@ -105,9 +106,9 @@ export class AuthRepository implements IAuthRepository {
     code: string,
     state: string,
   ): Promise<SocialAuthCallbackResult> {
-    const response = await apiClient.get<ApiResponse<SocialAuthCallbackResult>>(
+    const response = await apiClient.post<ApiResponse<SocialAuthCallbackResult>>(
       AUTH_ENDPOINTS.handleSocialCallback(role, provider),
-      { params: { code, state } },
+      { code, state },
     );
     return response.data.data;
   }

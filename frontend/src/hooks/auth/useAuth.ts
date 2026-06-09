@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth.store";
 import { AuthService } from "@/domain/auth/AuthService";
 import { AuthRepository } from "@/domain/auth/AuthRepository";
-import { TokenManager } from "@/domain/auth/TokenManager";
 import type {
   BrandRegisterInput,
   CreatorRegisterInput,
@@ -21,6 +20,10 @@ import type {
 import { ROUTES } from "@/config/routes.config";
 import { SocialAuthStatus, UserRole } from "@/types";
 
+function getDashboardPath(role: string): string {
+  return role === UserRole.BRAND ? ROUTES.brand.dashboard : ROUTES.creator.dashboard;
+}
+
 const authService = new AuthService(new AuthRepository());
 
 export function useLogin() {
@@ -29,10 +32,8 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (data: LoginInput) => authService.login(data),
-    onSuccess: (user) => {
-      const token = TokenManager.getInstance().get() ?? "";
-      const rawUser = { ...user } as Parameters<typeof setSession>[0];
-      setSession(rawUser, token);
+    onSuccess: ({ user, accessToken }) => {
+      setSession({ ...user } as Parameters<typeof setSession>[0], accessToken);
       router.push(user.dashboardPath);
     },
     onError: (error: Error) => {
@@ -120,10 +121,13 @@ export function useLogout() {
 
   return useMutation({
     mutationFn: () => authService.logout(),
-    onSettled: () => {
+    onSuccess: () => {
       clearAuth();
       queryClient.clear();
       router.push(ROUTES.auth.login);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message ?? "Logout failed. Please try again.");
     },
   });
 }
@@ -141,7 +145,7 @@ export function useResetPassword() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: (data: { token: string; newPassword: string; role: string }) =>
+    mutationFn: (data: { token: string; newPassword: string; role: UserRole }) =>
       authService.resetPassword(data),
     onSuccess: () => {
       toast.success("Password reset! You can now sign in.");
@@ -157,6 +161,19 @@ export function useInitiateSocialAuth() {
   return useMutation({
     mutationFn: ({ role, provider }: { role: string; provider: string }) =>
       authService.initiateSocialAuth(role, provider),
+    onSuccess: (url) => {
+      window.location.href = url;
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+export function useConnectSocialAccount() {
+  return useMutation({
+    mutationFn: ({ role, provider }: { role: string; provider: string }) =>
+      authService.connectSocialAccount(role, provider),
     onSuccess: (url) => {
       window.location.href = url;
     },
@@ -183,27 +200,27 @@ export function useSocialCallback() {
       code: string;
       state: string;
     }) => authService.handleSocialCallback(role, provider, code, state),
-    onSuccess: (result) => {
+    onSuccess: (result, { role }) => {
       if (result.status === SocialAuthStatus.AUTHENTICATED) {
         if (result.user && result.accessToken) {
           setSession(result.user, result.accessToken);
-          router.push(ROUTES.brand.dashboard);
+          router.replace(getDashboardPath(role));
         }
       } else if (result.status === SocialAuthStatus.PROFILE_INCOMPLETE) {
         if (result.intermediateToken) {
           setIntermediateToken(result.intermediateToken);
         }
-        // role is available in the closure via the mutation variables but we
-        // need to extract it from result or pass it separately — handled in the page
+        router.replace(ROUTES.auth.completeProfile(role));
       } else if (result.status === SocialAuthStatus.PENDING_EMAIL_SUBMISSION) {
         if (result.intermediateToken) {
           setIntermediateToken(result.intermediateToken);
         }
+        router.replace(ROUTES.auth.instagramEmail(role));
       } else if (result.status === SocialAuthStatus.PENDING_EMAIL_VERIFICATION) {
         if (result.intermediateToken) {
           setIntermediateToken(result.intermediateToken);
         }
-        router.push(ROUTES.auth.verifyEmail);
+        router.replace(ROUTES.auth.verifyEmail);
       }
     },
     onError: (error: Error) => {
@@ -228,12 +245,10 @@ export function useCompleteSocialProfile() {
       data: BrandCompleteProfileInput | CreatorCompleteProfileInput;
       intermediateToken: string;
     }) => authService.completeSocialProfile(role, data, intermediateToken),
-    onSuccess: (user) => {
-      const token = TokenManager.getInstance().get() ?? "";
-      const rawUser = { ...user } as Parameters<typeof setSession>[0];
-      setSession(rawUser, token);
+    onSuccess: ({ user, accessToken }, { role }) => {
+      setSession({ ...user } as Parameters<typeof setSession>[0], accessToken);
       clearIntermediateToken();
-      router.push(ROUTES.brand.dashboard);
+      router.push(getDashboardPath(role));
     },
     onError: (error: Error) => {
       toast.error(error.message);

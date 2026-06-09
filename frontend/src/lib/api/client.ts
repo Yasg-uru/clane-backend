@@ -4,6 +4,7 @@ import { ROUTES } from "@/config/routes.config";
 import { AUTH_ENDPOINTS } from "./endpoints";
 import { normalizeError } from "./error-handler";
 import type { SafeUser } from "@/types";
+import { useAuthStore } from "@/stores/auth.store";
 
 const SKIP_AUTH_PATHS = new Set<string>([
   AUTH_ENDPOINTS.login,
@@ -17,11 +18,11 @@ const SKIP_AUTH_PATHS = new Set<string>([
 // ── Shared refresh lock — used by both the 401 interceptor and useSessionHydration ──
 
 let isRefreshing = false;
-let refreshQueue: Array<(token: string) => void> = [];
+let refreshQueue: Array<(token: string, user: SafeUser) => void> = [];
 let refreshRejectQueue: Array<(err: unknown) => void> = [];
 
-function drainQueue(token: string): void {
-  refreshQueue.forEach((resolve) => resolve(token));
+function drainQueue(token: string, user: SafeUser): void {
+  refreshQueue.forEach((resolve) => resolve(token, user));
   refreshQueue = [];
   refreshRejectQueue = [];
 }
@@ -48,9 +49,15 @@ type RefreshApiResponse = {
 export async function performTokenRefresh(): Promise<{ accessToken: string; user: SafeUser }> {
   if (isRefreshing) {
     return new Promise<{ accessToken: string; user: SafeUser }>((resolve, reject) => {
-      refreshQueue.push((token) => resolve({ accessToken: token, user: getAuthStore().user! }));
-      refreshRejectQueue.push(reject);
-      setTimeout(() => reject(new Error("Refresh timeout")), 10_000);
+      const timer = setTimeout(() => reject(new Error("Refresh timeout")), 10_000);
+      refreshQueue.push((token, user) => {
+        clearTimeout(timer);
+        resolve({ accessToken: token, user });
+      });
+      refreshRejectQueue.push((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
     });
   }
 
@@ -60,8 +67,7 @@ export async function performTokenRefresh(): Promise<{ accessToken: string; user
     const response = await apiClient.post<RefreshApiResponse>(AUTH_ENDPOINTS.refresh);
     const { accessToken, user } = response.data.data;
 
-    getAuthStore().setAccessToken(accessToken);
-    drainQueue(accessToken);
+    drainQueue(accessToken, user);
 
     return { accessToken, user };
   } catch (error) {
@@ -81,7 +87,7 @@ export function createApiClient(): AxiosInstance {
   });
 
   client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-    const { getAccessToken } = getAuthStore();
+    const { getAccessToken } = useAuthStore.getState();
     const token = getAccessToken();
 
     const path = config.url ?? "";
@@ -99,17 +105,23 @@ export function createApiClient(): AxiosInstance {
     async (error) => {
       const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
       const status: number = error.response?.status ?? 0;
-      const isRefreshEndpoint = (original.url ?? "").includes(AUTH_ENDPOINTS.refresh);
+      const url = original.url ?? "";
+      const isRefreshEndpoint = url.includes(AUTH_ENDPOINTS.refresh);
+      // Intermediate-token endpoints carry their own Bearer token — a 401 there
+      // means the intermediate token expired, not the session; don't trigger refresh.
+      const isIntermediateTokenPath =
+        url.includes("/complete-profile") || url.includes("/instagram/submit-email");
 
-      if (status === 401 && !original._retry && !isRefreshEndpoint) {
+      if (status === 401 && !original._retry && !isRefreshEndpoint && !isIntermediateTokenPath) {
         original._retry = true;
 
         try {
-          const { accessToken } = await performTokenRefresh();
+          const { accessToken, user } = await performTokenRefresh();
+          useAuthStore.getState().setSession(user, accessToken);
           original.headers.Authorization = `Bearer ${accessToken}`;
           return client(original);
         } catch {
-          getAuthStore().clearAuth();
+          useAuthStore.getState().clearAuth();
           if (typeof window !== "undefined") {
             window.location.href = ROUTES.auth.login;
           }
@@ -122,13 +134,6 @@ export function createApiClient(): AxiosInstance {
   );
 
   return client;
-}
-
-// Lazy import to avoid circular dependency (store imports client, client imports store)
-function getAuthStore() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { useAuthStore } = require("@/stores/auth.store") as typeof import("@/stores/auth.store");
-  return useAuthStore.getState();
 }
 
 export const apiClient = createApiClient();

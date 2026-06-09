@@ -1,31 +1,14 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BrandDashboard } from "@/components/dashboard/brand-dashboard";
 import { CreatorDashboard } from "@/components/dashboard/creator-dashboard";
 import { useCurrentBrand, useCurrentCreator } from "@/hooks/auth/useCurrentUser";
-import { useAuthStore } from "@/stores/auth.store";
-import { ROUTES } from "@/config/routes.config";
 
 export default function DashboardPage(): ReactElement {
-  const router = useRouter();
-  const isHydrated = useAuthStore((s) => s.isHydrated);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const brand = useCurrentBrand();
   const creator = useCurrentCreator();
-
-  useEffect(() => {
-    if (isHydrated && !isAuthenticated) {
-      router.replace(ROUTES.auth.login);
-    }
-  }, [isHydrated, isAuthenticated, router]);
-
-  if (!isHydrated || !isAuthenticated) {
-    return <DashboardSkeleton />;
-  }
 
   if (brand) {
     return <BrandDashboard brand={brand} />;

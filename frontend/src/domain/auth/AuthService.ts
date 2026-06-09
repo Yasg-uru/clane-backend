@@ -12,17 +12,12 @@ import type {
 } from "@/schemas/auth.schema";
 import { normalizeError } from "@/lib/api/error-handler";
 import type { IAuthRepository } from "./AuthRepository";
-import { TokenManager } from "./TokenManager";
 import { BrandUser } from "./entities/BrandUser";
 import { CreatorUser } from "./entities/CreatorUser";
 import type { User } from "./entities/User";
 
 export class AuthService {
-  private readonly tokenManager: TokenManager;
-
-  constructor(private readonly authRepository: IAuthRepository) {
-    this.tokenManager = TokenManager.getInstance();
-  }
+  constructor(private readonly authRepository: IAuthRepository) {}
 
   private buildUserEntity(data: SafeUser): User {
     if (data.role === UserRole.BRAND) return new BrandUser(data);
@@ -47,11 +42,7 @@ export class AuthService {
 
   async verifyOtp(data: VerifyOtpInput): Promise<SocialAuthCallbackResult> {
     try {
-      const result = await this.authRepository.verifyOtp(data);
-      if (result.accessToken) {
-        this.tokenManager.set(result.accessToken);
-      }
-      return result;
+      return await this.authRepository.verifyOtp(data);
     } catch (error) {
       throw normalizeError(error);
     }
@@ -65,21 +56,10 @@ export class AuthService {
     }
   }
 
-  async login(data: LoginInput): Promise<User> {
+  async login(data: LoginInput): Promise<{ user: User; accessToken: string }> {
     try {
       const result = await this.authRepository.login(data);
-      this.tokenManager.set(result.accessToken);
-      return this.buildUserEntity(result.user);
-    } catch (error) {
-      throw normalizeError(error);
-    }
-  }
-
-  async refresh(): Promise<User> {
-    try {
-      const result = await this.authRepository.refresh();
-      this.tokenManager.set(result.accessToken);
-      return this.buildUserEntity(result.user);
+      return { user: this.buildUserEntity(result.user), accessToken: result.accessToken };
     } catch (error) {
       throw normalizeError(error);
     }
@@ -88,8 +68,8 @@ export class AuthService {
   async logout(): Promise<void> {
     try {
       await this.authRepository.logout();
-    } finally {
-      this.tokenManager.clear();
+    } catch (error) {
+      throw normalizeError(error);
     }
   }
 
@@ -104,7 +84,7 @@ export class AuthService {
   async resetPassword(data: {
     token: string;
     newPassword: string;
-    role: string;
+    role: UserRole;
   }): Promise<void> {
     try {
       await this.authRepository.resetPassword(data);
@@ -146,11 +126,10 @@ export class AuthService {
     role: string,
     data: BrandCompleteProfileInput | CreatorCompleteProfileInput,
     intermediateToken: string,
-  ): Promise<User> {
+  ): Promise<{ user: User; accessToken: string }> {
     try {
       const result = await this.authRepository.completeSocialProfile(role, data, intermediateToken);
-      this.tokenManager.set(result.accessToken);
-      return this.buildUserEntity(result.user);
+      return { user: this.buildUserEntity(result.user), accessToken: result.accessToken };
     } catch (error) {
       throw normalizeError(error);
     }

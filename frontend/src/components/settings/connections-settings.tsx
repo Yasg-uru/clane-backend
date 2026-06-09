@@ -4,10 +4,8 @@ import type { ReactElement } from "react";
 import { Check, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SettingsSectionCard } from "./settings-section-card";
-import {
-  useConnectSocialAccount,
-  useDisconnectSocial,
-} from "@/hooks/settings/useSettings";
+import { useConnectSocialAccount } from "@/hooks/auth/useAuth";
+import { useDisconnectSocial } from "@/hooks/settings/useSettings";
 import { CONNECTION_PROVIDERS } from "@/config/settings.config";
 import { isProviderConnected, providerConnectionDetail } from "@/lib/connection-status";
 import { cn } from "@/lib/utils";

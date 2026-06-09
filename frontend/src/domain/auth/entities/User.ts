@@ -8,7 +8,9 @@ export abstract class User {
   readonly city: string;
   readonly isEmailVerified: boolean;
   readonly authProvider: AuthProvider;
+  readonly authProviders: AuthProvider[];
   readonly createdAt?: string;
+  readonly updatedAt?: string;
 
   protected constructor(data: SafeUser) {
     this.id = data.id;
@@ -18,7 +20,9 @@ export abstract class User {
     this.city = data.city;
     this.isEmailVerified = data.isEmailVerified;
     this.authProvider = data.authProvider;
+    this.authProviders = data.authProviders;
     this.createdAt = data.createdAt;
+    this.updatedAt = data.updatedAt;
   }
 
   get initials(): string {

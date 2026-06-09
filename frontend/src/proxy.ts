@@ -9,9 +9,10 @@ const PUBLIC_PATHS = new Set<string>([
   ROUTES.auth.registerCreator,
   ROUTES.auth.verifyEmail,
   ROUTES.auth.forgotPassword,
+  ROUTES.auth.resetPassword,
 ]);
 
-export function proxy(request: NextRequest) {
+export function proxy(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
 
   const isPublic =

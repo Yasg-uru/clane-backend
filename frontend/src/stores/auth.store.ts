@@ -11,6 +11,7 @@ interface AuthState {
   intermediateToken: string | null;
 
   setSession: (user: SafeUser, accessToken: string) => void;
+  setUser: (user: SafeUser) => void;
   clearAuth: () => void;
   setHydrated: () => void;
   getAccessToken: () => string | null;
@@ -30,11 +31,11 @@ export const useAuthStore = create<AuthState>()((set) => ({
     set({ user, isAuthenticated: true, isHydrated: true, intermediateToken: null });
   },
 
+  setUser: (user) => set({ user }),
+
   clearAuth: () => {
     TokenManager.getInstance().clear();
-    // Reset isHydrated so useSessionHydration re-runs on next mount and can
-    // re-establish the session from the HTTP-only refresh-token cookie.
-    set({ user: null, isAuthenticated: false, isHydrated: false, intermediateToken: null });
+    set({ user: null, isAuthenticated: false, isHydrated: true, intermediateToken: null });
   },
 
   setHydrated: () => set({ isHydrated: true }),
