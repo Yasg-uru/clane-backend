@@ -81,6 +81,10 @@ export class RedisClient {
     return this.redis.expire(key, seconds);
   }
 
+  async scan(cursor: string, pattern: string, count: number): Promise<[string, string[]]> {
+    return this.redis.scan(cursor, "MATCH", pattern, "COUNT", count);
+  }
+
   async sendCommand(...args: string[]): Promise<unknown> {
     const [command, ...rest] = args;
     if (!command) throw new Error("Redis command is required");

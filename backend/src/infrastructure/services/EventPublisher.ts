@@ -5,7 +5,7 @@ import { logger } from "../../utils/logger";
 export class EventPublisher implements IEventPublisher {
   constructor(private readonly rabbitMQ: RabbitMQConnection) {}
 
-  publish(routingKey: string, payload: Record<string, unknown>): boolean {
+  publish(routingKey: string, payload: Record<string, unknown>, exchange?: string): boolean {
     const channel = this.rabbitMQ.getChannel();
 
     if (!channel) {
@@ -13,11 +13,16 @@ export class EventPublisher implements IEventPublisher {
       return false;
     }
 
-    return channel.publish(
-      this.rabbitMQ.getExchangeName(),
-      routingKey,
-      Buffer.from(JSON.stringify(payload)),
-      { contentType: "application/json", persistent: true },
-    );
+    try {
+      return channel.publish(
+        exchange ?? this.rabbitMQ.getExchangeName(),
+        routingKey,
+        Buffer.from(JSON.stringify(payload)),
+        { contentType: "application/json", persistent: true },
+      );
+    } catch (error) {
+      logger.warn("RabbitMQ publish failed, skipping event", { routingKey, error });
+      return false;
+    }
   }
 }

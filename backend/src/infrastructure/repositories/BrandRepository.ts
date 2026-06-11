@@ -1,8 +1,12 @@
-import { BrandModel, type BrandDocument } from "../../models/Brand.model";
-import { CreatorModel } from "../../models/Creator.model";
+import { BrandModel, type Brand, type BrandDocument } from "../../models/Brand.model";
+import type { IBrandRepository } from "../../core/interfaces/IBrandRepository";
+import type { WriteData } from "../../core/types";
 import { BaseRepository } from "./BaseRepository";
 
-export class BrandRepository extends BaseRepository<BrandDocument> {
+export class BrandRepository
+  extends BaseRepository<BrandDocument, Brand>
+  implements IBrandRepository
+{
   async findById(id: string): Promise<BrandDocument | null> {
     return BrandModel.findById(id).exec();
   }
@@ -23,26 +27,31 @@ export class BrandRepository extends BaseRepository<BrandDocument> {
     return Boolean(await BrandModel.exists({ email }));
   }
 
-  async emailExistsAcrossRoles(email: string): Promise<boolean> {
-    const [brand, creator] = await Promise.all([
-      BrandModel.exists({ email }),
-      CreatorModel.exists({ email }),
-    ]);
-    return Boolean(brand ?? creator);
-  }
-
   async findByGoogleId(googleId: string): Promise<BrandDocument | null> {
     return BrandModel.findOne({ googleId }).exec();
   }
 
-  async create(data: Partial<Record<string, unknown>>): Promise<BrandDocument> {
+  async findByInstagramId(instagramId: string): Promise<BrandDocument | null> {
+    return BrandModel.findOne({ instagramId }).exec();
+  }
+
+  async linkSocialProvider(userId: string, data: Partial<Brand>): Promise<void> {
+    await BrandModel.findByIdAndUpdate(userId, data).exec();
+  }
+
+  async markProfileComplete(userId: string): Promise<void> {
+    await BrandModel.findByIdAndUpdate(userId, { isProfileComplete: true }).exec();
+  }
+
+  async updatePasswordHash(userId: string, hash: string): Promise<void> {
+    await BrandModel.findByIdAndUpdate(userId, { passwordHash: hash }).exec();
+  }
+
+  async create(data: WriteData<Brand>): Promise<BrandDocument> {
     return BrandModel.create(data);
   }
 
-  async updateById(
-    id: string,
-    data: Partial<Record<string, unknown>>,
-  ): Promise<BrandDocument | null> {
+  async updateById(id: string, data: WriteData<Brand>): Promise<BrandDocument | null> {
     return BrandModel.findByIdAndUpdate(id, data, { new: true }).exec();
   }
 

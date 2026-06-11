@@ -1,11 +1,14 @@
 import { Schema, model, type HydratedDocument } from "mongoose";
-import type { AuthProvider } from "../core/types";
+import { UserRole, AuthProvider, AuthenticityRisk } from "../core/types";
+import type { GeoPoint } from "../core/types";
+
+export { AuthenticityRisk };
 
 export interface Creator {
-  role: "creator";
+  role: UserRole.Creator;
   fullName: string;
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
   city: string;
   instagramHandle: string;
   instagramFollowers: number;
@@ -13,6 +16,7 @@ export interface Creator {
   isEmailVerified: boolean;
   refreshToken?: string | null;
   authProvider: AuthProvider;
+  authProviders: AuthProvider[];
   instagramId?: string;
   instagramBio?: string;
   instagramProfilePicUrl?: string;
@@ -21,24 +25,67 @@ export interface Creator {
   instagramConnected: boolean;
   instagramVerified: boolean;
   instagramDataLastRefreshedAt?: Date;
+  // Instagram engagement metrics (fetched async by InstagramDataWorker)
+  instagramPostCount?: number;
+  instagramAvgLikes?: number;
+  instagramAvgComments?: number;
+  instagramEngagementRate?: number;
+  instagramDataFetchedAt?: Date;
+  // Instagram authenticity score (computed async by AuthenticityScoreWorker)
+  instagramAuthenticityScore?: number;
+  instagramAuthenticityRisk?: AuthenticityRisk;
+  // YouTube platform data
+  youtubeChannelId?: string;
+  youtubeConnected: boolean;
+  youtubeAccessToken?: string;
+  youtubeRefreshToken?: string;
+  youtubeTokenExpiresAt?: Date;
+  // YouTube engagement metrics (fetched async by YoutubeDataWorker)
+  youtubeSubscriberCount?: number;
+  youtubeVideoCount?: number;
+  youtubeTotalViewCount?: number;
+  youtubeAvgViews?: number;
+  youtubeAvgLikes?: number;
+  youtubeAvgComments?: number;
+  youtubeEngagementRate?: number;
+  youtubeDataFetchedAt?: Date;
+  youtubeDataLastRefreshedAt?: Date;
+  // YouTube authenticity score (computed async by AuthenticityScoreWorker)
+  youtubeAuthenticityScore?: number;
+  youtubeAuthenticityRisk?: AuthenticityRisk;
+  // Google OAuth
+  googleId?: string;
+  googleEmail?: string;
+  googleConnected: boolean;
+  isProfileComplete: boolean;
+  rawSocialProfile?: Record<string, unknown>;
+  location?: GeoPoint;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
 export type CreatorDocument = HydratedDocument<Creator>;
 
+const geoPointSchema = new Schema<GeoPoint>(
+  {
+    type: { type: String, enum: ["Point"], required: true },
+    coordinates: { type: [Number], required: true },
+  },
+  { _id: false },
+);
+
 const creatorSchema = new Schema<Creator>(
   {
     role: {
       type: String,
-      enum: ["creator"],
-      default: "creator",
+      enum: [UserRole.Creator],
+      default: UserRole.Creator,
       required: true,
       immutable: true,
     },
     fullName: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
-    passwordHash: { type: String, required: true, select: false },
+    passwordHash: { type: String, default: null, select: false },
     city: { type: String, required: true, trim: true },
     instagramHandle: { type: String, required: true, trim: true, unique: true, index: true },
     instagramFollowers: { type: Number, required: true, min: 0 },
@@ -54,10 +101,11 @@ const creatorSchema = new Schema<Creator>(
     refreshToken: { type: String, default: null, select: false },
     authProvider: {
       type: String,
-      enum: ["email", "instagram", "google", "both"],
-      default: "email",
+      enum: Object.values(AuthProvider),
+      default: AuthProvider.Email,
       required: true,
     },
+    authProviders: { type: [String], enum: Object.values(AuthProvider), default: [] },
     instagramId: { type: String, sparse: true, unique: true },
     instagramBio: { type: String },
     instagramProfilePicUrl: { type: String },
@@ -66,6 +114,35 @@ const creatorSchema = new Schema<Creator>(
     instagramConnected: { type: Boolean, default: false },
     instagramVerified: { type: Boolean, default: false },
     instagramDataLastRefreshedAt: { type: Date },
+    instagramPostCount: { type: Number, min: 0 },
+    instagramAvgLikes: { type: Number, min: 0 },
+    instagramAvgComments: { type: Number, min: 0 },
+    instagramEngagementRate: { type: Number, min: 0 },
+    instagramDataFetchedAt: { type: Date },
+    instagramAuthenticityScore: { type: Number, min: 0, max: 100 },
+    instagramAuthenticityRisk: { type: String, enum: Object.values(AuthenticityRisk) },
+    youtubeChannelId: { type: String, sparse: true, unique: true },
+    youtubeConnected: { type: Boolean, default: false },
+    youtubeAccessToken: { type: String, select: false },
+    youtubeRefreshToken: { type: String, select: false },
+    youtubeTokenExpiresAt: { type: Date },
+    youtubeSubscriberCount: { type: Number, min: 0 },
+    youtubeVideoCount: { type: Number, min: 0 },
+    youtubeTotalViewCount: { type: Number, min: 0 },
+    youtubeAvgViews: { type: Number, min: 0 },
+    youtubeAvgLikes: { type: Number, min: 0 },
+    youtubeAvgComments: { type: Number, min: 0 },
+    youtubeEngagementRate: { type: Number, min: 0 },
+    youtubeDataFetchedAt: { type: Date },
+    youtubeDataLastRefreshedAt: { type: Date },
+    youtubeAuthenticityScore: { type: Number, min: 0, max: 100 },
+    youtubeAuthenticityRisk: { type: String, enum: Object.values(AuthenticityRisk) },
+    googleId: { type: String, sparse: true, unique: true },
+    googleEmail: { type: String, lowercase: true, trim: true },
+    googleConnected: { type: Boolean, default: false },
+    isProfileComplete: { type: Boolean, default: false },
+    rawSocialProfile: { type: Schema.Types.Mixed, select: false },
+    location: { type: geoPointSchema },
   },
   {
     timestamps: true,
@@ -77,11 +154,21 @@ const creatorSchema = new Schema<Creator>(
         delete ret.passwordHash;
         delete ret.refreshToken;
         delete ret.instagramAccessToken;
+        delete ret.youtubeAccessToken;
+        delete ret.youtubeRefreshToken;
+        delete ret.rawSocialProfile;
         delete ret.__v;
         return ret;
       },
     },
   },
+);
+
+creatorSchema.index({ location: "2dsphere" }, { sparse: true });
+// Supports brand creator browse: filter by verified+complete, sort by reach
+creatorSchema.index(
+  { isEmailVerified: 1, isProfileComplete: 1, instagramFollowers: -1 },
+  { name: "creator_browse" },
 );
 
 export const CreatorModel = model<Creator>("Creator", creatorSchema);

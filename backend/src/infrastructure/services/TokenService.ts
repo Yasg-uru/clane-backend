@@ -4,7 +4,8 @@ import { env } from "../../config/env";
 import type { RedisClient } from "../../config/RedisClient";
 import type { ITokenService } from "../../core/interfaces/ITokenService";
 import { AuthError } from "../../core/errors/AuthError";
-import type { JwtPayload, UserRole } from "../../core/types";
+import { UserRole } from "../../core/types";
+import type { JwtPayload } from "../../core/types";
 import {
   ACCESS_TOKEN_OPTIONS,
   INSTAGRAM_PENDING_PURPOSE,
@@ -61,6 +62,33 @@ export class TokenService implements ITokenService {
     return (await this.redisClient.exists(`blacklist:at:${jti}`)) === 1;
   }
 
+  generateIntermediateToken(payload: JwtPayload): string {
+    return jwt.sign(
+      {
+        userId: payload.userId,
+        role: payload.role,
+        email: payload.email,
+        purpose: payload.purpose,
+        jti: crypto.randomUUID(),
+      },
+      env.JWT_ACCESS_SECRET,
+      SHORT_LIVED_TOKEN_OPTIONS,
+    );
+  }
+
+  verifyIntermediateToken(token: string): JwtPayload {
+    let decoded: string | JsonWebTokenPayload;
+    try {
+      decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, VERIFY_OPTIONS);
+    } catch {
+      throw new AuthError("Unauthorized");
+    }
+    if (typeof decoded === "string" || decoded === null) throw new AuthError("Unauthorized");
+    const raw = decoded as Record<string, unknown>;
+    if (!raw["purpose"]) throw new AuthError("Unauthorized");
+    return this.normalizePayload(decoded);
+  }
+
   signInstagramPendingToken(sessionId: string): string {
     return jwt.sign(
       { sessionId, purpose: INSTAGRAM_PENDING_PURPOSE },
@@ -109,6 +137,6 @@ export class TokenService implements ITokenService {
   }
 
   private static isUserRole(role: unknown): role is UserRole {
-    return role === "brand" || role === "creator";
+    return role === UserRole.Brand || role === UserRole.Creator;
   }
 }

@@ -5,35 +5,40 @@ import { RabbitMQConnection } from "./config/RabbitMQConnection";
 import { env } from "./config/env";
 import { logger } from "./utils/logger";
 import { App } from "./app";
-
-// ─── Infrastructure services ─────────────────────────────────────────────────
-import { TokenService } from "./infrastructure/services/TokenService";
-import { OtpService } from "./infrastructure/services/OtpService";
-import { EmailService } from "./infrastructure/services/EmailService";
-import { EventPublisher } from "./infrastructure/services/EventPublisher";
-
-// ─── Repositories ─────────────────────────────────────────────────────────────
-import { BrandRepository } from "./infrastructure/repositories/BrandRepository";
-import { CreatorRepository } from "./infrastructure/repositories/CreatorRepository";
-
-// ─── Middleware classes ───────────────────────────────────────────────────────
-import { AuthMiddleware } from "./infrastructure/middleware/AuthMiddleware";
-import { RateLimiterMiddleware } from "./infrastructure/middleware/RateLimiterMiddleware";
-import { ErrorHandlerMiddleware } from "./infrastructure/middleware/ErrorHandlerMiddleware";
-import { NotFoundMiddleware } from "./infrastructure/middleware/NotFoundMiddleware";
-import { RequestLoggerMiddleware } from "./infrastructure/middleware/RequestLoggerMiddleware";
-
-// ─── Auth module ──────────────────────────────────────────────────────────────
-import { EmailPasswordStrategy } from "./modules/auth/strategies/EmailPasswordStrategy";
-import { BrandAuthService } from "./modules/auth/BrandAuthService";
-import { CreatorAuthService } from "./modules/auth/CreatorAuthService";
-import { AuthController } from "./modules/auth/AuthController";
+import type { MatchScoreWorker } from "./workers/MatchScoreWorker";
+import type { CampaignCleanupWorker } from "./workers/CampaignCleanupWorker";
+import type { ViewCountWorker } from "./workers/ViewCountWorker";
+import type { BidNotificationWorker } from "./workers/BidNotificationWorker";
+import type { EscrowInitWorker } from "./workers/EscrowInitWorker";
+import type { EscrowFundedWorker } from "./workers/EscrowFundedWorker";
+import type { InstagramDataWorker } from "./workers/InstagramDataWorker";
+import type { YoutubeDataWorker } from "./workers/YoutubeDataWorker";
+import type { AuthenticityScoreWorker } from "./workers/AuthenticityScoreWorker";
+import type { CampaignExpiryJob } from "./jobs/CampaignExpiryJob";
+import type { EscrowPaymentTimeoutJob } from "./jobs/EscrowPaymentTimeoutJob";
+import type { EscrowAutoRefundJob } from "./jobs/EscrowAutoRefundJob";
+import type { SocialDataRefreshJob } from "./jobs/SocialDataRefreshJob";
 
 export class Server {
   private httpServer!: http.Server;
   private isShuttingDown = false;
 
-  constructor(private readonly app: App) {}
+  constructor(
+    private readonly app: App,
+    private readonly matchScoreWorker: MatchScoreWorker,
+    private readonly campaignCleanupWorker: CampaignCleanupWorker,
+    private readonly viewCountWorker: ViewCountWorker,
+    private readonly campaignExpiryJob: CampaignExpiryJob,
+    private readonly bidNotificationWorker: BidNotificationWorker,
+    private readonly escrowInitWorker: EscrowInitWorker,
+    private readonly escrowFundedWorker: EscrowFundedWorker,
+    private readonly escrowPaymentTimeoutJob: EscrowPaymentTimeoutJob,
+    private readonly escrowAutoRefundJob: EscrowAutoRefundJob,
+    private readonly instagramDataWorker: InstagramDataWorker,
+    private readonly youtubeDataWorker: YoutubeDataWorker,
+    private readonly authenticityScoreWorker: AuthenticityScoreWorker,
+    private readonly socialDataRefreshJob: SocialDataRefreshJob,
+  ) {}
 
   async start(): Promise<void> {
     const db = DatabaseConnection.getInstance();
@@ -43,6 +48,23 @@ export class Server {
     await db.connect();
     await redis.connect();
     await rabbitMQ.connect();
+
+    await Promise.all([
+      this.matchScoreWorker.start(),
+      this.campaignCleanupWorker.start(),
+      this.viewCountWorker.start(),
+      this.bidNotificationWorker.start(),
+      this.escrowInitWorker.start(),
+      this.escrowFundedWorker.start(),
+      this.instagramDataWorker.start(),
+      this.youtubeDataWorker.start(),
+      this.authenticityScoreWorker.start(),
+    ]);
+
+    this.campaignExpiryJob.start();
+    this.escrowPaymentTimeoutJob.start();
+    this.escrowAutoRefundJob.start();
+    this.socialDataRefreshJob.start();
 
     this.httpServer = this.app.getExpressApp().listen(env.PORT, this.onListening);
     this.registerShutdownHandlers();
@@ -86,6 +108,23 @@ export class Server {
     forceExit.unref();
 
     try {
+      this.campaignExpiryJob.stop();
+      this.escrowPaymentTimeoutJob.stop();
+      this.escrowAutoRefundJob.stop();
+      this.socialDataRefreshJob.stop();
+
+      await Promise.all([
+        this.matchScoreWorker.stop(),
+        this.campaignCleanupWorker.stop(),
+        this.viewCountWorker.stop(),
+        this.bidNotificationWorker.stop(),
+        this.escrowInitWorker.stop(),
+        this.escrowFundedWorker.stop(),
+        this.instagramDataWorker.stop(),
+        this.youtubeDataWorker.stop(),
+        this.authenticityScoreWorker.stop(),
+      ]);
+
       await this.closeHttpServer();
 
       const db = DatabaseConnection.getInstance();
@@ -118,51 +157,3 @@ export class Server {
   }
 }
 
-// ─── Composition Root ─────────────────────────────────────────────────────────
-
-const redis = RedisClient.getInstance();
-const rabbitMQ = RabbitMQConnection.getInstance();
-
-const tokenService = new TokenService(redis);
-const otpService = new OtpService(redis);
-const emailService = new EmailService();
-const eventPublisher = new EventPublisher(rabbitMQ);
-
-const brandRepository = new BrandRepository();
-const creatorRepository = new CreatorRepository();
-
-const emailPasswordStrategy = new EmailPasswordStrategy();
-
-const brandAuthService = new BrandAuthService(
-  brandRepository,
-  tokenService,
-  otpService,
-  emailService,
-  eventPublisher,
-  emailPasswordStrategy,
-);
-
-const creatorAuthService = new CreatorAuthService(
-  creatorRepository,
-  tokenService,
-  otpService,
-  emailService,
-  eventPublisher,
-  emailPasswordStrategy,
-);
-
-const authMiddleware = new AuthMiddleware(tokenService);
-const rateLimiter = new RateLimiterMiddleware(redis);
-const errorHandler = new ErrorHandlerMiddleware();
-const notFound = new NotFoundMiddleware();
-const requestLogger = new RequestLoggerMiddleware();
-
-const authController = new AuthController(brandAuthService, creatorAuthService, tokenService);
-
-const app = new App(authController, authMiddleware, rateLimiter, errorHandler, notFound, requestLogger);
-const server = new Server(app);
-
-void server.start().catch((error: unknown) => {
-  logger.error("Failed to start server", { error });
-  process.exit(1);
-});

@@ -1,0 +1,2 @@
+export const COLLAB_LIST_LIMIT_DEFAULT = 20;
+export const COLLAB_LIST_LIMIT_MAX = 50;

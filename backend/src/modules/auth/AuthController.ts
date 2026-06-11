@@ -1,19 +1,26 @@
-import type { Request } from "express";
 import { AuthError } from "../../core/errors/AuthError";
 import type { ITokenService } from "../../core/interfaces/ITokenService";
-import type { UserRole } from "../../core/types";
+import { UserRole, SocialProvider, SocialAuthStatus } from "../../core/types";
 import { ApiResponse } from "../../core/responses/ApiResponse";
 import { AsyncHandler } from "../../utils/asyncHandler";
+import { requireUser } from "../../utils/httpContext";
 import {
+  brandCompleteProfileSchema,
   brandRegisterSchema,
+  creatorCompleteProfileSchema,
   creatorRegisterSchema,
+  forgotPasswordSchema,
   loginSchema,
   resendOtpSchema,
+  resetPasswordSchema,
+  socialCallbackSchema,
+  submitInstagramEmailSchema,
   verifyOtpSchema,
 } from "./auth.validator";
 import type { BrandAuthService } from "./BrandAuthService";
 import type { CreatorAuthService } from "./CreatorAuthService";
 import type { BaseAuthService } from "./BaseAuthService";
+import { AuthUtils } from "./auth.utils";
 import {
   CLEAR_REFRESH_COOKIE_OPTIONS,
   REFRESH_COOKIE_OPTIONS,
@@ -42,9 +49,18 @@ export class AuthController {
   verifyOtp = AsyncHandler.wrap(async (req, res) => {
     const payload = verifyOtpSchema.parse(req.body);
     const result = await this.getService(payload.role).verifyOtp(payload);
-    res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS);
+
+    if (result.refreshToken) {
+      res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    }
+
     res.status(200).json(
-      new ApiResponse("Email verified", { accessToken: result.accessToken, user: result.user }),
+      new ApiResponse("Email verified", {
+        status: result.status ?? SocialAuthStatus.Authenticated,
+        accessToken: result.accessToken,
+        intermediateToken: result.intermediateToken ?? null,
+        user: result.user,
+      }),
     );
   });
 
@@ -58,16 +74,16 @@ export class AuthController {
   });
 
   refresh = AsyncHandler.wrap(async (req, res) => {
-    const rawToken = this.getRefreshTokenFromCookie(req);
+    const rawToken = AuthUtils.getRefreshTokenFromCookie(req);
     const decoded = this.tokenService.verifyRefreshToken(rawToken);
     const result = await this.getService(decoded.role).refreshToken(rawToken, decoded);
     res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS);
-    res.status(200).json(new ApiResponse("Token refreshed", { accessToken: result.accessToken }));
+    res.status(200).json(new ApiResponse("Token refreshed", { accessToken: result.accessToken, user: result.user }));
   });
 
   logout = AsyncHandler.wrap(async (req, res) => {
-    if (!req.user) throw new AuthError("Unauthorized");
-    await this.getService(req.user.role).logout(req.user);
+    const user = requireUser(req);
+    await this.getService(user.role).logout(user);
     res.clearCookie(REFRESH_TOKEN_COOKIE, CLEAR_REFRESH_COOKIE_OPTIONS);
     res.status(200).json(new ApiResponse("Logged out", {}));
   });
@@ -78,19 +94,101 @@ export class AuthController {
     res.status(200).json(new ApiResponse("OTP resent", { email: payload.email }));
   });
 
+  forgotPassword = AsyncHandler.wrap(async (req, res) => {
+    const payload = forgotPasswordSchema.parse(req.body);
+    await this.getService(payload.role).forgotPassword(payload);
+    res
+      .status(200)
+      .json(
+        new ApiResponse("If that email is registered, a reset link has been sent", {}),
+      );
+  });
+
+  resetPassword = AsyncHandler.wrap(async (req, res) => {
+    const payload = resetPasswordSchema.parse(req.body);
+    await this.getService(payload.role).resetPassword(payload);
+    res.status(200).json(new ApiResponse("Password reset successfully", {}));
+  });
+
+  // ─── Social auth ──────────────────────────────────────────────────────────
+
+  initiateSocialAuth = AsyncHandler.wrap(async (req, res) => {
+    const role = req.params["role"] as UserRole;
+    const provider = req.params["provider"] as SocialProvider;
+    const url = await this.getService(role).initiateOAuth(provider, "login");
+    res.status(200).json(new ApiResponse("OAuth URL generated", { url }));
+  });
+
+  handleSocialCallback = AsyncHandler.wrap(async (req, res) => {
+    const { code, state } = socialCallbackSchema.parse(req.query);
+    const role = req.params["role"] as UserRole;
+    const provider = req.params["provider"] as SocialProvider;
+    const result = await this.getService(role).handleSocialCallback(provider, code, state);
+
+    if (result.refreshToken) {
+      res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    }
+
+    res.status(200).json(
+      new ApiResponse("Authentication successful", {
+        status: result.status,
+        accessToken: result.accessToken,
+        intermediateToken: result.intermediateToken,
+        user: result.user,
+        instagramTokenExpiringSoon: result.instagramTokenExpiringSoon,
+        instagramTokenExpired: result.instagramTokenExpired,
+      }),
+    );
+  });
+
+  connectSocialAccount = AsyncHandler.wrap(async (req, res) => {
+    const user = requireUser(req);
+    const role = req.params["role"] as UserRole;
+    const provider = req.params["provider"] as SocialProvider;
+    const url = await this.getService(role).initiateOAuth(provider, "connect", user.userId);
+    res.status(200).json(new ApiResponse("OAuth URL generated", { url }));
+  });
+
+  completeSocialProfile = AsyncHandler.wrap(async (req, res) => {
+    const user = requireUser(req);
+    const role = req.params["role"] as UserRole;
+    const schema = role === UserRole.Brand ? brandCompleteProfileSchema : creatorCompleteProfileSchema;
+    const data = schema.parse(req.body) as Partial<Record<string, unknown>>;
+    const result = await this.getService(role).completeSocialProfile(
+      user.userId,
+      data,
+      user.jti,
+      user.exp,
+    );
+
+    if (result.refreshToken) {
+      res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    }
+
+    res.status(200).json(
+      new ApiResponse("Profile completed", {
+        accessToken: result.accessToken,
+        user: result.user,
+      }),
+    );
+  });
+
+  submitInstagramEmail = AsyncHandler.wrap(async (req, res) => {
+    if (!req.oauthSession) throw new AuthError("Unauthorized");
+    const role = req.params["role"] as UserRole;
+    const { email } = submitInstagramEmailSchema.parse(req.body);
+    const result = await this.getService(role).submitInstagramEmail(
+      req.oauthSession.sessionId,
+      email,
+    );
+    res.status(200).json(
+      new ApiResponse("Email submitted, OTP sent", {
+        intermediateToken: result.intermediateToken,
+      }),
+    );
+  });
+
   private getService(role: UserRole): BaseAuthService {
-    return role === "brand" ? this.brandAuthService : this.creatorAuthService;
-  }
-
-  private getRefreshTokenFromCookie(req: Request): string {
-    const cookies = req.cookies as unknown;
-    const cookieRecord =
-      typeof cookies === "object" && cookies !== null
-        ? (cookies as Record<string, unknown>)
-        : {};
-    const refreshToken = cookieRecord[REFRESH_TOKEN_COOKIE];
-
-    if (typeof refreshToken !== "string") throw new AuthError("Unauthorized");
-    return refreshToken;
+    return role === UserRole.Brand ? this.brandAuthService : this.creatorAuthService;
   }
 }

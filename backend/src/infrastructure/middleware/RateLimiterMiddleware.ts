@@ -1,5 +1,7 @@
+import type { NextFunction, Request, Response } from "express";
 import rateLimit, { ipKeyGenerator, type RateLimitRequestHandler } from "express-rate-limit";
 import { RedisStore, type RedisReply } from "rate-limit-redis";
+import { env } from "../../config/env";
 import type { RedisClient } from "../../config/RedisClient";
 
 export class RateLimiterMiddleware {
@@ -7,8 +9,22 @@ export class RateLimiterMiddleware {
   readonly resendOtp: RateLimitRequestHandler;
 
   constructor(private readonly redisClient: RedisClient) {
+    if (env.NODE_ENV === "development" || env.NODE_ENV === "test") {
+      this.auth = this.createNoopLimiter();
+      this.resendOtp = this.createNoopLimiter();
+      return;
+    }
+
     this.auth = this.createLimiter({ limit: 10, windowMs: 15 * 60 * 1000 });
     this.resendOtp = this.createResendOtpLimiter();
+  }
+
+  private createNoopLimiter(): RateLimitRequestHandler {
+    return ((
+      _req: Request,
+      _res: Response,
+      next: NextFunction,
+    ) => next()) as unknown as RateLimitRequestHandler;
   }
 
   private createLimiter(opts: { limit: number; windowMs: number }): RateLimitRequestHandler {

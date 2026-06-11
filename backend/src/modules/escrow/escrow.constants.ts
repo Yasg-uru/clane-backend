@@ -1,0 +1,12 @@
+export const PLATFORM_FEE_RATIO = 0.05;
+export const PAISE_PER_RUPEE = 100;
+
+export const ESCROW_LIST_LIMIT_DEFAULT = 20;
+export const ESCROW_LIST_LIMIT_MAX = 50;
+
+export const COLLAB_DEADLINE_BUFFER_DAYS = 7;
+
+export const WEBHOOK_LOCK_TTL_SECONDS = 30;
+
+export const PAYMENT_TIMEOUT_JOB_INTERVAL_MS = 30 * 60 * 1000;
+export const AUTO_REFUND_JOB_INTERVAL_MS = 6 * 60 * 60 * 1000;

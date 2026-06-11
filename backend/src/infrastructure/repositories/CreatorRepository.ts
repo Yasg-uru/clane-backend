@@ -1,8 +1,22 @@
-import { CreatorModel, type CreatorDocument } from "../../models/Creator.model";
-import { BrandModel } from "../../models/Brand.model";
+import type { FilterQuery } from "mongoose";
+import { CreatorModel, type Creator, type CreatorDocument } from "../../models/Creator.model";
+import type {
+  ICreatorRepository,
+  InstagramPlatformData,
+  YoutubePlatformData,
+  YoutubeTokenData,
+} from "../../core/interfaces/ICreatorRepository";
+import type { AuthenticityRisk, PaginatedResult, WriteData } from "../../core/types";
+import { CreatorPlatform } from "../../modules/creator/creator.types";
+import type { CreatorBrowseFilters } from "../../modules/creator/creator.types";
 import { BaseRepository } from "./BaseRepository";
 
-export class CreatorRepository extends BaseRepository<CreatorDocument> {
+const REFRESH_CUTOFF_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+export class CreatorRepository
+  extends BaseRepository<CreatorDocument, Creator>
+  implements ICreatorRepository
+{
   async findById(id: string): Promise<CreatorDocument | null> {
     return CreatorModel.findById(id).exec();
   }
@@ -19,35 +33,173 @@ export class CreatorRepository extends BaseRepository<CreatorDocument> {
     return CreatorModel.findById(id).select("+refreshToken").exec();
   }
 
+  async findByIdWithInstagramToken(id: string): Promise<CreatorDocument | null> {
+    return CreatorModel.findById(id).select("+instagramAccessToken").exec();
+  }
+
+  async findByIdWithYoutubeTokens(id: string): Promise<CreatorDocument | null> {
+    return CreatorModel.findById(id).select("+youtubeAccessToken +youtubeRefreshToken").exec();
+  }
+
   async emailExists(email: string): Promise<boolean> {
     return Boolean(await CreatorModel.exists({ email }));
   }
 
-  async emailExistsAcrossRoles(email: string): Promise<boolean> {
-    const [brand, creator] = await Promise.all([
-      BrandModel.exists({ email }),
-      CreatorModel.exists({ email }),
-    ]);
-    return Boolean(brand ?? creator);
+  async findByGoogleId(googleId: string): Promise<CreatorDocument | null> {
+    return CreatorModel.findOne({ googleId }).exec();
   }
 
   async findByInstagramId(instagramId: string): Promise<CreatorDocument | null> {
     return CreatorModel.findOne({ instagramId }).exec();
   }
 
-  async create(data: Partial<Record<string, unknown>>): Promise<CreatorDocument> {
+  async findByYoutubeChannelId(channelId: string): Promise<CreatorDocument | null> {
+    return CreatorModel.findOne({ youtubeChannelId: channelId }).exec();
+  }
+
+  async linkSocialProvider(userId: string, data: Partial<Creator>): Promise<void> {
+    await CreatorModel.findByIdAndUpdate(userId, data).exec();
+  }
+
+  async markProfileComplete(userId: string): Promise<void> {
+    await CreatorModel.findByIdAndUpdate(userId, { isProfileComplete: true }).exec();
+  }
+
+  async updatePasswordHash(userId: string, hash: string): Promise<void> {
+    await CreatorModel.findByIdAndUpdate(userId, { passwordHash: hash }).exec();
+  }
+
+  async updateInstagramPlatformData(creatorId: string, data: InstagramPlatformData): Promise<void> {
+    await CreatorModel.findByIdAndUpdate(creatorId, data).exec();
+  }
+
+  async updateYoutubePlatformData(creatorId: string, data: YoutubePlatformData): Promise<void> {
+    await CreatorModel.findByIdAndUpdate(creatorId, data).exec();
+  }
+
+  async updateYoutubeTokens(creatorId: string, data: YoutubeTokenData): Promise<void> {
+    await CreatorModel.findByIdAndUpdate(creatorId, data).exec();
+  }
+
+  async updateInstagramAuthenticityScore(
+    creatorId: string,
+    score: number,
+    risk: AuthenticityRisk,
+  ): Promise<void> {
+    await CreatorModel.findByIdAndUpdate(creatorId, {
+      instagramAuthenticityScore: score,
+      instagramAuthenticityRisk: risk,
+    }).exec();
+  }
+
+  async updateYoutubeAuthenticityScore(
+    creatorId: string,
+    score: number,
+    risk: AuthenticityRisk,
+  ): Promise<void> {
+    await CreatorModel.findByIdAndUpdate(creatorId, {
+      youtubeAuthenticityScore: score,
+      youtubeAuthenticityRisk: risk,
+    }).exec();
+  }
+
+  async findCreatorsForInstagramRefresh(): Promise<CreatorDocument[]> {
+    const cutoff = new Date(Date.now() - REFRESH_CUTOFF_MS);
+    return CreatorModel.find(
+      {
+        instagramConnected: true,
+        instagramAccessToken: { $exists: true, $ne: null },
+        $or: [
+          { instagramDataFetchedAt: { $exists: false } },
+          { instagramDataFetchedAt: { $lt: cutoff } },
+        ],
+      },
+      { _id: 1 },
+    ).exec();
+  }
+
+  async findCreatorsForYoutubeRefresh(): Promise<CreatorDocument[]> {
+    const cutoff = new Date(Date.now() - REFRESH_CUTOFF_MS);
+    return CreatorModel.find(
+      {
+        youtubeConnected: true,
+        youtubeRefreshToken: { $exists: true, $ne: null },
+        $or: [
+          { youtubeDataFetchedAt: { $exists: false } },
+          { youtubeDataFetchedAt: { $lt: cutoff } },
+        ],
+      },
+      { _id: 1 },
+    ).exec();
+  }
+
+  async create(data: WriteData<Creator>): Promise<CreatorDocument> {
     return CreatorModel.create(data);
   }
 
-  async updateById(
-    id: string,
-    data: Partial<Record<string, unknown>>,
-  ): Promise<CreatorDocument | null> {
+  async updateById(id: string, data: WriteData<Creator>): Promise<CreatorDocument | null> {
     return CreatorModel.findByIdAndUpdate(id, data, { new: true }).exec();
   }
 
   async deleteById(id: string): Promise<boolean> {
     const result = await CreatorModel.findByIdAndDelete(id).exec();
     return result !== null;
+  }
+
+  async findAllActive(): Promise<CreatorDocument[]> {
+    return CreatorModel.find(
+      { isEmailVerified: true },
+      { instagramHandle: 1, instagramFollowers: 1, niche: 1, city: 1, instagramConnected: 1, location: 1 },
+    ).exec();
+  }
+
+  async findByIds(ids: string[]): Promise<CreatorDocument[]> {
+    return CreatorModel.find({ _id: { $in: ids } }).exec();
+  }
+
+  async findWithBrowseFilters(
+    filters: CreatorBrowseFilters,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedResult<CreatorDocument>> {
+    const query: FilterQuery<CreatorDocument> = {
+      isEmailVerified: true,
+      isProfileComplete: true,
+    };
+
+    if (filters.niche?.length) {
+      query.niche = { $in: filters.niche };
+    }
+
+    if (filters.city) {
+      query.city = { $regex: filters.city, $options: "i" };
+    }
+
+    if (filters.followersMin !== undefined || filters.followersMax !== undefined) {
+      const followersFilter: { $gte?: number; $lte?: number } = {};
+      if (filters.followersMin !== undefined) followersFilter.$gte = filters.followersMin;
+      if (filters.followersMax !== undefined) followersFilter.$lte = filters.followersMax;
+      query.instagramFollowers = followersFilter;
+    }
+
+    if (filters.platform === CreatorPlatform.Instagram) {
+      query.instagramConnected = true;
+    } else if (filters.platform === CreatorPlatform.YouTube) {
+      query.youtubeConnected = true;
+    } else if (filters.platform === CreatorPlatform.Both) {
+      query.instagramConnected = true;
+      query.youtubeConnected = true;
+    }
+
+    const [total, items] = await Promise.all([
+      CreatorModel.countDocuments(query),
+      CreatorModel.find(query)
+        .sort({ instagramFollowers: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
+    ]);
+
+    return this.buildPaginatedResult(items, total, page, limit);
   }
 }
