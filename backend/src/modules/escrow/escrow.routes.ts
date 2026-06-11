@@ -24,6 +24,13 @@ export const createEscrowRouter = (
     controller.refreshPaymentLink,
   );
 
+  router.post(
+    "/:escrowId/verify-payment",
+    authMiddleware.authenticate,
+    authMiddleware.requireRole(UserRole.Brand),
+    controller.verifyPayment,
+  );
+
   // List — delegates to brand or creator handler based on role
   router.get(
     "/",

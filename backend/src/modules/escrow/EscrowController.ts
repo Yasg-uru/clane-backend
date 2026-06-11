@@ -3,7 +3,7 @@ import { AsyncHandler } from "../../utils/asyncHandler";
 import { requireParam, requireUser } from "../../utils/httpContext";
 import { logger } from "../../utils/logger";
 import type { EscrowService } from "./EscrowService";
-import { escrowListQuerySchema } from "./escrow.validator";
+import { escrowListQuerySchema, verifyPaymentBodySchema } from "./escrow.validator";
 import { UserRole } from "../../core/types";
 
 export class EscrowController {
@@ -47,12 +47,27 @@ export class EscrowController {
     res.status(200).json(new ApiResponse("Payment link refreshed", { razorpayOrderId }));
   });
 
+  verifyPayment = AsyncHandler.wrap(async (req, res) => {
+    const user = requireUser(req);
+    const escrowId = requireParam(req, "escrowId");
+    const body = verifyPaymentBodySchema.parse(req.body);
+
+    const escrow = await this.escrowService.verifyPayment(user.userId, escrowId, {
+      razorpayOrderId: body.razorpay_order_id,
+      razorpayPaymentId: body.razorpay_payment_id,
+      razorpaySignature: body.razorpay_signature,
+    });
+
+    res.status(200).json(new ApiResponse("Payment acknowledged", { escrow }));
+  });
+
   // ─── Razorpay webhook ─────────────────────────────────────────────────────
   //
   // Bound to express.raw() middleware on the route. Always responds 200 — even
   // on signature/processing failure — so Razorpay does not retry indefinitely.
 
   handleRazorpayWebhook = AsyncHandler.wrap(async (req, res) => {
+    console.log("Received Razorpay webhook", { headers: req.headers, body: req.body });
     const signature = req.header("x-razorpay-signature") ?? "";
     const rawBody = Buffer.isBuffer(req.body)
       ? req.body.toString("utf8")

@@ -72,6 +72,7 @@ export class EscrowService {
   // ─── Worker-only ──────────────────────────────────────────────────────────
 
   async initEscrow(bidId: string): Promise<EscrowDocument> {
+    logger.info("EscrowService: initEscrow called", { bidId });
     const existing = await this.escrowRepository.findByBidId(bidId);
     if (existing) return existing;
 
@@ -86,7 +87,7 @@ export class EscrowService {
 
     const { agreedAmount, platformFeeAmount, totalChargedAmount, creatorReceivableAmount } =
       EscrowUtils.calculateAmounts(bid.proposedAmount);
-
+    logger.info("EscrowService: calculated amounts for escrow", { agreedAmount, platformFeeAmount, totalChargedAmount, creatorReceivableAmount });
     const now = new Date();
     const paymentDeadline = new Date(now.getTime() + env.PAYMENT_TIMEOUT_HOURS * MS_PER_HOUR);
     const collabDeadline = new Date(
@@ -105,6 +106,7 @@ export class EscrowService {
         platformFee: platformFeeAmount,
       },
     });
+    logger.info("EscrowService: created Razorpay order", { orderId: order.id, bidId });
 
     const escrow = await this.escrowRepository.create({
       bidId: bid._id,
@@ -125,6 +127,7 @@ export class EscrowService {
       collabDeadline,
       webhookEvents: [],
     });
+    logger.info("EscrowService: created escrow record", { escrowId: escrow._id.toString(), bidId });
 
     await this.notificationRepository.createNotification({
       recipientId: bid.brandId.toString(),
@@ -144,20 +147,21 @@ export class EscrowService {
       },
     });
 
-    this.eventPublisher.publish(
-      EscrowEvent.Initiated,
-      {
-        escrowId: escrow._id.toString(),
-        bidId: bid._id.toString(),
-        campaignId: bid.campaignId.toString(),
-        brandId: bid.brandId.toString(),
-        creatorId: bid.creatorId.toString(),
-        totalChargedAmount,
-        razorpayOrderId: order.id,
-        paymentDeadline,
-      },
-      ESCROW_EXCHANGE_NAME,
-    );
+    // logger.info("EscrowService: publishing initiated event", { escrowId: escrow._id.toString() });
+    // this.eventPublisher.publish(
+    //   EscrowEvent.Initiated,
+    //   {
+    //     escrowId: escrow._id.toString(),
+    //     bidId: bid._id.toString(),
+    //     campaignId: bid.campaignId.toString(),
+    //     brandId: bid.brandId.toString(),
+    //     creatorId: bid.creatorId.toString(),
+    //     totalChargedAmount,
+    //     razorpayOrderId: order.id,
+    //     paymentDeadline,
+    //   },
+    //   ESCROW_EXCHANGE_NAME,
+    // );
 
     return escrow;
   }
@@ -306,6 +310,38 @@ export class EscrowService {
     });
 
     return order.id;
+  }
+
+  // Verifies the Razorpay client-side HMAC signature so the frontend can show
+  // an optimistic "payment received" state. Does NOT fund the escrow — that is
+  // exclusively the webhook's job.
+  async verifyPayment(
+    brandId: string,
+    escrowId: string,
+    payload: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string },
+  ): Promise<EscrowBrandView> {
+    const escrow = await this.escrowRepository.findById(escrowId);
+    if (!escrow || escrow.brandId.toString() !== brandId) {
+      throw new NotFoundError("Escrow not found", "ESCROW_NOT_FOUND");
+    }
+
+    if (payload.razorpayOrderId !== escrow.razorpayOrderId) {
+      throw new ValidationError("Order ID mismatch", "ORDER_ID_MISMATCH");
+    }
+
+    if (
+      !this.razorpayService.verifyPaymentSignature(
+        payload.razorpayOrderId,
+        payload.razorpayPaymentId,
+        payload.razorpaySignature,
+      )
+    ) {
+      logger.warn("EscrowService: invalid payment signature", { escrowId });
+      throw new AuthError("Invalid payment signature", "INVALID_PAYMENT_SIGNATURE");
+    }
+
+    logger.info("EscrowService: payment signature verified", { escrowId });
+    return EscrowMapper.toBrandView(escrow);
   }
 
   // ─── Auto-refund stub (Phase 6 fills in) ──────────────────────────────────

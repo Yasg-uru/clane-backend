@@ -27,6 +27,7 @@ export class EscrowInitWorker extends BaseWorker {
     let bidId: string | undefined;
     try {
       const payload = JSON.parse(msg.content.toString()) as Record<string, unknown>;
+      logger.info("EscrowInitWorker: received message", { payload });
       bidId = typeof payload["bidId"] === "string" ? payload["bidId"] : undefined;
       if (!bidId) {
         logger.warn("EscrowInitWorker: message missing bidId, discarding", { payload });
@@ -37,6 +38,7 @@ export class EscrowInitWorker extends BaseWorker {
       await this.escrowService.initEscrow(bidId);
       channel.ack(msg);
     } catch (err) {
+      logger.error("EscrowInitWorker: error processing message", { bidId, err });
       if (err instanceof ConflictError) {
         logger.debug("EscrowInitWorker: escrow already exists for bid", { bidId });
         channel.ack(msg);

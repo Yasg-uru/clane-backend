@@ -12,6 +12,7 @@ export type { RazorpayServiceConfig, CreateOrderParams, InitiateRefundParams, Tr
 
 export class RazorpayService {
   private readonly client: Razorpay;
+  private readonly keySecret: string;
   private readonly webhookSecret: string;
 
   constructor(config: RazorpayServiceConfig) {
@@ -19,6 +20,7 @@ export class RazorpayService {
       key_id: config.keyId,
       key_secret: config.keySecret,
     });
+    this.keySecret = config.keySecret;
     this.webhookSecret = config.webhookSecret;
   }
 
@@ -43,14 +45,18 @@ export class RazorpayService {
   }
 
   verifyWebhookSignature(rawBody: string, signature: string): boolean {
-    const expected = crypto
-      .createHmac("sha256", this.webhookSecret)
-      .update(rawBody)
-      .digest("hex");
+    return this.hmacTimingSafeEqual(this.webhookSecret, rawBody, signature);
+  }
 
+  // Verifies the client-side callback signature: HMAC-SHA256(order_id + "|" + payment_id, key_secret)
+  verifyPaymentSignature(orderId: string, paymentId: string, signature: string): boolean {
+    return this.hmacTimingSafeEqual(this.keySecret, `${orderId}|${paymentId}`, signature);
+  }
+
+  private hmacTimingSafeEqual(secret: string, data: string, signature: string): boolean {
+    const expected = crypto.createHmac("sha256", secret).update(data).digest("hex");
     const expectedBuffer = Buffer.from(expected, "utf8");
     const signatureBuffer = Buffer.from(signature, "utf8");
-
     if (expectedBuffer.length !== signatureBuffer.length) return false;
     return crypto.timingSafeEqual(expectedBuffer, signatureBuffer);
   }
